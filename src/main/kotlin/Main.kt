@@ -1,6 +1,5 @@
 import adapter.PgJobResultRepo
 import adapter.PgJobStatusRepo
-import androidx.compose.desktop.DesktopMaterialTheme
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.ExperimentalMaterialApi
@@ -30,16 +29,15 @@ import presentation.status.bloc.DefaultJobStatusEvents
 import presentation.status.bloc.JobStatusBloc
 import presentation.status.bloc.JobStatusEvents
 import java.io.File
-import java.net.URL
-import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 fun getConfig(): Config {
-  val configURL: URL =
-    ClassLoader.getSystemResource("config.json")
-      ?: throw Exception("Could not locate a resource named config.json.")
+  val configFile = File("./config.json")
 
-  val configFile = File(configURL.file)
+  if (!configFile.exists()) {
+    throw Exception("${configFile.path} was not found.")
+  }
 
   val configJsonText = configFile.readText()
 
@@ -96,7 +94,7 @@ fun main() = application {
   }
 
   mainScope.launch {
-    jobResultBloc.autorefreshEvery(Duration.minutes(1))
+    jobResultBloc.autorefreshEvery(1.minutes)
   }
 
   val jobStatusEvents: JobStatusEvents = DefaultJobStatusEvents
@@ -111,7 +109,7 @@ fun main() = application {
   }
 
   mainScope.launch {
-    jobStatusBloc.autorefreshEvery(Duration.minutes(1))
+    jobStatusBloc.autorefreshEvery(1.minutes)
   }
 
   Window(
@@ -120,7 +118,7 @@ fun main() = application {
     title = "KETL Monitor",
     resizable = true,
   ) {
-    DesktopMaterialTheme(colors = darkColors()) {
+    MaterialTheme(colors = darkColors()) {
       Surface(
         color = MaterialTheme.colors.surface,
         contentColor = contentColorFor(MaterialTheme.colors.surface),

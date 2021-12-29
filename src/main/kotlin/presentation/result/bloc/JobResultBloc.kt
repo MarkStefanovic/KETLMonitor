@@ -7,7 +7,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -44,7 +43,7 @@ class JobResultBloc(
     }
   }
 
-  suspend fun start() = coroutineScope {
+  suspend fun start() {
     events.stream.collect { event ->
       println("JobResultDashBloc received refresh event.")
 

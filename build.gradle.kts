@@ -3,13 +3,14 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.5.21"
-    id("org.jmailen.kotlinter") version "3.4.5"
-    id("org.jetbrains.compose") version "1.0.0-alpha3"
-    id( "org.jetbrains.kotlin.plugin.serialization") version "1.4.30"
+    kotlin("jvm") version "1.6.10"
+    id("org.jmailen.kotlinter") version "3.8.0"
+    id("org.jetbrains.compose") version "1.0.1"
+    id( "org.jetbrains.kotlin.plugin.serialization") version "1.6.10"
+    id("com.github.ben-manes.versions") version "0.39.0"
 }
 
-group = "me.admin42"
+group = "me.mes"
 version = "1.0"
 
 repositories {
@@ -23,15 +24,15 @@ dependencies {
 
     implementation(compose.desktop.currentOs)
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2-native-mt")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
 
-//    implementation("org.xerial:sqlite-jdbc:3.36.0.2")
+    implementation("org.xerial:sqlite-jdbc:3.36.0.3")
 
-    implementation("org.postgresql", "postgresql", "42.2.16")
+    implementation("org.postgresql:postgresql:42.3.1")
 
     implementation("com.zaxxer:HikariCP:5.0.0")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
 }
 
 kotlinter {
@@ -50,6 +51,7 @@ compose.desktop {
     application {
         mainClass = "MainKt"
         nativeDistributions {
+            modules("java.sql")
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "KETLMonitor"
             packageVersion = "1.0.0"
