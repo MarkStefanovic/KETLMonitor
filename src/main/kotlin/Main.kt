@@ -1,3 +1,4 @@
+import adapter.PgJobLogRepo
 import adapter.PgJobResultRepo
 import adapter.PgJobStatusRepo
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -9,6 +10,7 @@ import androidx.compose.material.contentColorFor
 import androidx.compose.material.darkColors
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
@@ -18,11 +20,15 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import domain.Config
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import presentation.MainView
+import presentation.log.bloc.DefaultJobLogEvents
+import presentation.log.bloc.JobLogBloc
 import presentation.result.bloc.DefaultJobResultEvents
 import presentation.result.bloc.JobResultBloc
 import presentation.status.bloc.DefaultJobStatusEvents
@@ -46,14 +52,16 @@ fun getConfig(): Config {
   }.decodeFromString(configJsonText)
 }
 
+@FlowPreview
 @ExperimentalTime
 @DelicateCoroutinesApi
 @ExperimentalMaterialApi
+@ExperimentalCoroutinesApi
 @ExperimentalFoundationApi
 fun main() = application {
   val state = rememberWindowState(
-    width = 600.dp, // use Dp.Unspecified to auto-fit
-    height = 900.dp,
+    width = 900.dp, // use Dp.Unspecified to auto-fit
+    height = Dp.Unspecified,
     position = WindowPosition.Aligned(Alignment.TopStart),
   )
 
@@ -82,6 +90,12 @@ fun main() = application {
     showSQL = false,
   )
 
+  val pgJobLogRepo = PgJobLogRepo(
+    ds = pgDataSource,
+    schema = "ketl",
+    showSQL = false,
+  )
+
   val jobResultEvents = DefaultJobResultEvents
 
   val jobResultBloc = JobResultBloc(
@@ -95,6 +109,22 @@ fun main() = application {
 
   mainScope.launch {
     jobResultBloc.autorefreshEvery(1.minutes)
+  }
+
+  val jobLogEvents = DefaultJobLogEvents
+
+  val jobLogBloc = JobLogBloc(
+    repo = pgJobLogRepo,
+    events = jobLogEvents,
+    maxEntriesToDisplay = 1000,
+  )
+
+  mainScope.launch {
+    jobLogBloc.start()
+  }
+
+  mainScope.launch {
+    jobLogBloc.autorefreshEvery(1.minutes)
   }
 
   val jobStatusEvents: JobStatusEvents = DefaultJobStatusEvents
@@ -129,6 +159,8 @@ fun main() = application {
           jobResultsEvents = jobResultEvents,
           jobStatusStateFlow = jobStatusBloc.state,
           jobStatusEvents = jobStatusEvents,
+          jobLogStateFlow = jobLogBloc.state,
+          jobLogEvents = jobLogEvents,
         )
       }
     }

@@ -13,6 +13,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.flow.StateFlow
+import presentation.log.bloc.JobLogEvents
+import presentation.log.bloc.JobLogState
+import presentation.log.view.JobLogListView
 import presentation.result.bloc.JobResultEvents
 import presentation.result.bloc.JobResultState
 import presentation.result.view.JobResultListView
@@ -28,10 +31,12 @@ fun MainView(
   jobResultsEvents: JobResultEvents,
   jobStatusStateFlow: StateFlow<JobStatusState>,
   jobStatusEvents: JobStatusEvents,
+  jobLogStateFlow: StateFlow<JobLogState>,
+  jobLogEvents: JobLogEvents,
 ) {
   var tabIndex by remember { mutableStateOf(0) }
 
-  val tabNames = listOf("Results", "Status")
+  val tabNames = listOf("Results", "Status", "Log")
 
   Column {
     TabRow(
@@ -50,16 +55,25 @@ fun MainView(
       }
     }
 
-    if (tabIndex == 0) {
-      JobResultListView(
-        stateFlow = jobResultsStateFlow,
-        events = jobResultsEvents,
-      )
-    } else {
-      JobStatusListView(
-        stateFlow = jobStatusStateFlow,
-        events = jobStatusEvents,
-      )
+    when (tabIndex) {
+      0 -> {
+        JobResultListView(
+          stateFlow = jobResultsStateFlow,
+          events = jobResultsEvents,
+        )
+      }
+      1 -> {
+        JobStatusListView(
+          stateFlow = jobStatusStateFlow,
+          events = jobStatusEvents,
+        )
+      }
+      2 -> {
+        JobLogListView(
+          stateFlow = jobLogStateFlow,
+          events = jobLogEvents,
+        )
+      }
     }
   }
 }

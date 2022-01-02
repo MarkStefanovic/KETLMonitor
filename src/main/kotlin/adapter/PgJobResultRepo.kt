@@ -28,7 +28,7 @@ data class PgJobResultRepo(
     if (showSQL) {
       println(
         """
-        |PgJobResultsRepo.getLatestResult SQL:
+        |PgJobResultsRepo.getLatestResult:
         |  ${sql.split("\n").joinToString("\n    ")}
       """.trimMargin()
       )

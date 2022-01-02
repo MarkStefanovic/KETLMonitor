@@ -16,8 +16,8 @@ import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
 class JobResultBloc(
-  val repo: JobResultRepo,
-  val events: JobResultEvents,
+  private val repo: JobResultRepo,
+  private val events: JobResultEvents,
 ) {
   private var _state = MutableStateFlow<JobResultState>(JobResultState.Initial)
 
