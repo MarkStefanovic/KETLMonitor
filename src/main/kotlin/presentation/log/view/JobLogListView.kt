@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -47,6 +48,7 @@ import presentation.log.bloc.JobLogState
 import presentation.shared.abbreviatedTimestampFormat
 
 @Composable
+@FlowPreview
 @ExperimentalMaterialApi
 @ExperimentalFoundationApi
 fun JobLogListView(

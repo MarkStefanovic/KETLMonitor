@@ -1,5 +1,6 @@
 package presentation.status.view
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
@@ -16,11 +17,18 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import domain.JobStatus
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
 import presentation.shared.abbreviatedTimestampFormat
 import presentation.status.bloc.JobStatusEvents
 import presentation.status.bloc.JobStatusState
@@ -43,10 +52,33 @@ fun JobStatusListView(
 
   val listState = rememberLazyListState()
 
+  val coroutineScope = rememberCoroutineScope()
+
+  val showScrollToTopButton by remember {
+    derivedStateOf {
+      listState.firstVisibleItemIndex > 0
+    }
+  }
+
   Column(
     modifier = Modifier.padding(6.dp)
   ) {
     Row {
+      AnimatedVisibility(visible = showScrollToTopButton) {
+        IconButton(
+          onClick = {
+            coroutineScope.launch {
+              listState.animateScrollToItem(index = 0)
+            }
+          }
+        ) {
+          Icon(
+            imageVector = Icons.Filled.KeyboardArrowUp,
+            contentDescription = "Scroll to Top",
+          )
+        }
+      }
+
       Button(
         onClick = events::refresh,
         colors = ButtonDefaults.buttonColors(backgroundColor = Color.DarkGray),

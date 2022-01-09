@@ -7,7 +7,7 @@ plugins {
     id("org.jmailen.kotlinter") version "3.8.0"
     id("org.jetbrains.compose") version "1.0.1"
     id( "org.jetbrains.kotlin.plugin.serialization") version "1.6.10"
-    id("com.github.ben-manes.versions") version "0.39.0"
+    id("com.github.ben-manes.versions") version "0.41.0"
 }
 
 group = "me.mes"
