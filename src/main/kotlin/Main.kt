@@ -35,6 +35,7 @@ import presentation.status.bloc.DefaultJobStatusEvents
 import presentation.status.bloc.JobStatusBloc
 import presentation.status.bloc.JobStatusEvents
 import java.io.File
+import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
@@ -59,6 +60,13 @@ fun getConfig(): Config {
 @ExperimentalCoroutinesApi
 @ExperimentalFoundationApi
 fun main() = application {
+  try {
+    Class.forName("org.postgresql.Driver")
+  } catch (ex: ClassNotFoundException) {
+    println("Unable to load the class, org.postgresql.Driver. Terminating the program...")
+    exitProcess(-1)
+  }
+
   val state = rememberWindowState(
     width = 900.dp, // use Dp.Unspecified to auto-fit
     height = Dp.Unspecified,

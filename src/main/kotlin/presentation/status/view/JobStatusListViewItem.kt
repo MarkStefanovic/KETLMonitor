@@ -14,6 +14,7 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
@@ -46,6 +47,7 @@ fun JobStatusListViewItem(
       "failed" -> Color.Red
       "running" -> Color.Green
       "skipped" -> Color.Gray
+      "cancelled" -> Color.Red
       else -> throw Exception("Unrecognized status: ${jobStatus.status}.")
     }
 
@@ -54,6 +56,7 @@ fun JobStatusListViewItem(
       "failed" -> Icons.Filled.KeyboardArrowRight
       "running" -> Icons.Filled.PlayArrow
       "skipped" -> Icons.Filled.Refresh
+      "cancelled" -> Icons.Filled.ExitToApp
       else -> throw Exception("Unrecognized status: ${jobStatus.status}.")
     }
 
