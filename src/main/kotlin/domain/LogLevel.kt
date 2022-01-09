@@ -1,6 +1,7 @@
 package domain
 
 enum class LogLevel {
+  Any,
   Debug,
   Error,
   Info,

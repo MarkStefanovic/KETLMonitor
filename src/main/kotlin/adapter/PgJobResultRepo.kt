@@ -58,7 +58,6 @@ data class PgJobResultRepo(
 
           jobResults.add(jobResult)
         }
-        println(jobResults)
         return jobResults
       }
     }

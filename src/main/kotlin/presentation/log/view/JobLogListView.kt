@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import presentation.log.bloc.JobLogEvents
 import presentation.log.bloc.JobLogState
+import presentation.shared.EnumDropdown
 import presentation.shared.abbreviatedTimestampFormat
 
 @Composable
@@ -67,20 +68,39 @@ fun JobLogListView(
     }
   }
 
-  var filter by remember { mutableStateOf(state.filter) }
+  var jobNameFilter by remember { mutableStateOf(state.filter) }
 
-  LaunchedEffect("filter") {
+  var logLevelFilter by remember { mutableStateOf(state.logLevel) }
+
+  LaunchedEffect("jobNameFilter") {
     snapshotFlow {
-      filter
+      jobNameFilter
     }
       .distinctUntilChanged()
       .debounce(1000)
       .collect {
-        events.setJobNameFilter(it)
+        events.setFilter(
+          jobNamePrefix = it,
+          logLevel = logLevelFilter,
+        )
       }
   }
 
-  println("JobLogListView.state: $state")
+//  LaunchedEffect("logLevelFilter") {
+//    snapshotFlow {
+//      logLevelFilter
+//    }
+//    .distinctUntilChanged()
+//    .debounce(1000)
+//    .collect {
+//      events.setFilter(
+//        jobNamePrefix = jobNameFilter,
+//        logLevel = it,
+//      )
+//    }
+//  }
+
+//  println("JobLogListView.state: $state")
 
   Column(
     modifier = Modifier.padding(6.dp)
@@ -124,15 +144,34 @@ fun JobLogListView(
 
     Spacer(Modifier.height(6.dp))
 
-    TextField(
-      value = filter,
-      onValueChange = { txt ->
-        filter = txt
-      },
-      label = { Text("Job", modifier = Modifier.fillMaxHeight()) },
-      maxLines = 1,
-      modifier = Modifier.fillMaxWidth(),
-    )
+    Row {
+      TextField(
+        value = jobNameFilter,
+        onValueChange = { txt ->
+          jobNameFilter = txt
+        },
+        label = { Text("Job", modifier = Modifier.fillMaxHeight()) },
+        maxLines = 1,
+        modifier = Modifier.weight(1f).height(65.dp),
+//        modifier = Modifier.fillMaxWidth(),
+      )
+
+      Spacer(Modifier.width(10.dp))
+
+      EnumDropdown(
+        label = "Log Level",
+        value = logLevelFilter,
+        onValueChange = {
+          logLevelFilter = it
+
+          events.setFilter(
+            jobNamePrefix = jobNameFilter,
+            logLevel = it,
+          )
+        },
+        modifier = Modifier.width(150.dp)
+      )
+    }
 
     when (val st = state) {
       JobLogState.Initial -> {

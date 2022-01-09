@@ -54,6 +54,7 @@ inline fun <reified T : Enum<T>> EnumDropdown(
       iterator<T>().asSequence().forEach { enumValue ->
         DropdownMenuItem(onClick = {
           onValueChange(enumValue)
+          expanded = false
         }) {
           Text(text = enumValue.toString(), modifier = Modifier.height(30.dp))
         }

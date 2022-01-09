@@ -1,5 +1,6 @@
 package presentation.log.bloc
 
+import domain.LogLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.MainScope
@@ -13,7 +14,7 @@ interface JobLogEvents {
 
   fun refresh()
 
-  fun setJobNameFilter(jobNamePrefix: String)
+  fun setFilter(jobNamePrefix: String, logLevel: LogLevel)
 }
 
 @FlowPreview
@@ -31,10 +32,10 @@ object DefaultJobLogEvents : JobLogEvents {
     }
   }
 
-  override fun setJobNameFilter(jobNamePrefix: String) {
-    println("${javaClass.simpleName}.setJobNameFilter(jobNamePrefix = $jobNamePrefix)")
+  override fun setFilter(jobNamePrefix: String, logLevel: LogLevel) {
+    println("${javaClass.simpleName}.setJobNameFilter(jobNamePrefix = $jobNamePrefix, logLevel = $logLevel)")
     scope.launch {
-      _stream.emit(JobLogEvent.FilterChanged(jobNamePrefix))
+      _stream.emit(JobLogEvent.FilterChanged(prefix = jobNamePrefix, logLevel = logLevel))
     }
   }
 }

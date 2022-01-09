@@ -1,6 +1,7 @@
 package presentation.log.bloc
 
 import domain.JobLogRepo
+import domain.LogLevel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -31,6 +32,8 @@ class JobLogBloc(
 
   private var filter = ""
 
+  private var logLevel = LogLevel.Any
+
   suspend fun autorefreshEvery(duration: Duration) = coroutineScope {
     while (coroutineContext.isActive) {
       events.refresh()
@@ -40,16 +43,19 @@ class JobLogBloc(
 
   suspend fun start() {
     events.stream.collect { event: JobLogEvent ->
-      println("JobLogBloc:\n  event: $event")
+//      println("JobLogBloc:\n  event: $event")
 
       withContext(dispatcher) {
         when (event) {
           is JobLogEvent.FilterChanged -> {
             filter = event.prefix
 
+            logLevel = event.logLevel
+
             _state.emit(
               JobLogState.Loading(
                 filter = filter,
+                logLevel = logLevel,
                 latestRefresh = latestRefresh,
               )
             )
@@ -58,6 +64,7 @@ class JobLogBloc(
             _state.emit(
               JobLogState.Loading(
                 filter = filter,
+                logLevel = logLevel,
                 latestRefresh = latestRefresh,
               )
             )
@@ -65,11 +72,11 @@ class JobLogBloc(
         }
       }
 
-      val logEntries = if (filter.isBlank()) {
-        repo.getLatestEntries(n = maxEntriesToDisplay)
-      } else {
-        repo.getLatestEntriesForJobLike(jobNamePrefix = filter, n = maxEntriesToDisplay)
-      }
+      val logEntries = repo.where(
+        jobNamePrefix = filter,
+        logLevel = logLevel,
+        n = maxEntriesToDisplay,
+      )
 
       withContext(dispatcher) {
         latestRefresh = LocalDateTime.now()
@@ -77,6 +84,7 @@ class JobLogBloc(
         _state.emit(
           JobLogState.Loaded(
             filter = filter,
+            logLevel = logLevel,
             latestRefresh = latestRefresh ?: LocalDateTime.now(),
             logEntries = logEntries,
           )

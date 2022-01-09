@@ -61,7 +61,6 @@ data class PgJobStatusRepo(
 
           jobStatuses.add(jobStatus)
         }
-        println(jobStatuses)
         return jobStatuses
       }
     }

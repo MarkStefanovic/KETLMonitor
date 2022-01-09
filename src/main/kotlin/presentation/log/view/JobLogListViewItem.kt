@@ -46,6 +46,7 @@ fun JobLogListViewItem(
     LogLevel.Error -> Color.Red
     LogLevel.Info -> Color.White
     LogLevel.Warning -> Color.Yellow
+    LogLevel.Any -> error("There should not be entries in the database with the log level 'any'.")
   }
 
   Row(

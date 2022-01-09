@@ -1,7 +1,5 @@
 package domain
 
 interface JobLogRepo {
-  fun getLatestEntries(n: Int): List<JobLogEntry>
-
-  fun getLatestEntriesForJobLike(jobNamePrefix: String, n: Int): List<JobLogEntry>
+  fun where(jobNamePrefix: String, logLevel: LogLevel, n: Int): List<JobLogEntry>
 }
