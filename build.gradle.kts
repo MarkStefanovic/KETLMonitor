@@ -24,7 +24,7 @@ dependencies {
 
     implementation(compose.desktop.currentOs)
 
-    implementation("androidx.compose.compiler:compiler:1.1.0-rc02")
+    implementation("androidx.compose.compiler:compiler:1.2.0-alpha02")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
 
@@ -32,7 +32,7 @@ dependencies {
 
     implementation("org.postgresql:postgresql:42.3.1")
 
-    implementation("com.zaxxer:HikariCP:5.0.0")
+    implementation("com.zaxxer:HikariCP:5.0.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
 }

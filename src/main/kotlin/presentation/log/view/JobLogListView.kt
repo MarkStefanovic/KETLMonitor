@@ -86,22 +86,6 @@ fun JobLogListView(
       }
   }
 
-//  LaunchedEffect("logLevelFilter") {
-//    snapshotFlow {
-//      logLevelFilter
-//    }
-//    .distinctUntilChanged()
-//    .debounce(1000)
-//    .collect {
-//      events.setFilter(
-//        jobNamePrefix = jobNameFilter,
-//        logLevel = it,
-//      )
-//    }
-//  }
-
-//  println("JobLogListView.state: $state")
-
   Column(
     modifier = Modifier.padding(6.dp)
   ) {
