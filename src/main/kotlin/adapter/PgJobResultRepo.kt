@@ -21,8 +21,7 @@ data class PgJobResultRepo(
       |  , j.skip_reason
       |  FROM $schema.job_result_snapshot AS j
       |  ORDER BY 
-      |    CASE j.result WHEN 'failed' THEN 0 ELSE 1 END
-      |  , j.start_time
+      |    j.end_time DESC
     """.trimMargin()
 
     if (showSQL) {
