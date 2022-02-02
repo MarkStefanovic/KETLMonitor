@@ -1,5 +1,6 @@
 package presentation.result.bloc
 
+import domain.ResultFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -17,7 +18,7 @@ interface JobResultEvents {
 
   fun refresh()
 
-  fun setJobNameFilter(jobNamePrefix: String)
+  fun setFilter(jobNamePrefix: String, result: ResultFilter)
 }
 
 object DefaultJobResultEvents : JobResultEvents {
@@ -45,10 +46,15 @@ object DefaultJobResultEvents : JobResultEvents {
     }
   }
 
-  override fun setJobNameFilter(jobNamePrefix: String) {
+  override fun setFilter(jobNamePrefix: String, result: ResultFilter) {
     scope.launch {
       withContext(dispatcher) {
-        _stream.emit(JobResultEvent.FilterChanged(jobNamePrefix))
+        _stream.emit(
+          JobResultEvent.FilterChanged(
+            jobNamePrefix = jobNamePrefix,
+            resultFilter = result,
+          )
+        )
       }
     }
   }

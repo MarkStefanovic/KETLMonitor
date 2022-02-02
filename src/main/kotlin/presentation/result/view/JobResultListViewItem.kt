@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import domain.JobResult
 import presentation.shared.abbreviatedTimestampFormat
+import java.text.NumberFormat
+import java.util.Locale
 
 @Composable
 @ExperimentalMaterialApi
@@ -112,6 +114,10 @@ fun JobResultListViewItem(
 
     Spacer(Modifier.weight(1f))
 
-    Text(text = jobResult.end.format(abbreviatedTimestampFormat))
+    Text(NumberFormat.getNumberInstance(Locale.US).format(jobResult.duration.seconds) + " sec")
+
+    Spacer(Modifier.weight(1f))
+
+    Text(jobResult.end.format(abbreviatedTimestampFormat))
   }
 }

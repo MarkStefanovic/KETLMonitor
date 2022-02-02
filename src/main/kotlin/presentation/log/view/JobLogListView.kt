@@ -77,7 +77,7 @@ fun JobLogListView(
       jobNameFilter
     }
       .distinctUntilChanged()
-      .debounce(1000)
+      .debounce(500)
       .collect {
         events.setFilter(
           jobNamePrefix = it,
@@ -137,7 +137,6 @@ fun JobLogListView(
         label = { Text("Job", modifier = Modifier.fillMaxHeight()) },
         maxLines = 1,
         modifier = Modifier.weight(1f).height(65.dp),
-//        modifier = Modifier.fillMaxWidth(),
       )
 
       Spacer(Modifier.width(10.dp))

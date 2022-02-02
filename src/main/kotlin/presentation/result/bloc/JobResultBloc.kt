@@ -2,6 +2,7 @@ package presentation.result.bloc
 
 import domain.JobResult
 import domain.JobResultRepo
+import domain.ResultFilter
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -27,14 +28,20 @@ class JobResultBloc(
 
   private var latestRefresh: LocalDateTime? = null
 
-  private var filter = ""
+  private var jobNameFilter = ""
+
+  private var resultFilter = ResultFilter.All
 
   private var selectedRow: Int? = null
 
   private val unfilteredJobResults = mutableListOf<JobResult>()
 
   private val filteredJobResults: List<JobResult>
-    get() = unfilteredJobResults.filter { it.jobName.lowercase().contains(filter.lowercase()) }
+    get() = unfilteredJobResults
+      .filter {
+        ((resultFilter == ResultFilter.All) || (it.result == resultFilter.dbName)) &&
+          it.jobName.lowercase().contains(jobNameFilter.lowercase())
+      }
 
   suspend fun autorefreshEvery(duration: Duration) = coroutineScope {
     while (coroutineContext.isActive) {
@@ -55,7 +62,8 @@ class JobResultBloc(
             is JobResultState.Loaded -> {
               withContext(dispatcher) {
                 val newState = JobResultState.Loaded(
-                  jobNameFilter = filter,
+                  jobNameFilter = jobNameFilter,
+                  resultFilter = resultFilter,
                   jobResults = filteredJobResults,
                   selectedRow = state.value.selectedRow,
                   latestRefresh = st.latestRefresh,
@@ -71,6 +79,7 @@ class JobResultBloc(
           withContext(dispatcher) {
             val newState = JobResultState.Loading(
               jobNameFilter = state.value.jobNameFilter,
+              resultFilter = state.value.resultFilter,
               jobResults = filteredJobResults,
               selectedRow = selectedRow,
               latestRefresh = latestRefresh,
@@ -89,6 +98,7 @@ class JobResultBloc(
 
             val newState = JobResultState.Loaded(
               jobNameFilter = state.value.jobNameFilter,
+              resultFilter = state.value.resultFilter,
               jobResults = filteredJobResults,
               selectedRow = selectedRow,
               latestRefresh = lr,
@@ -100,13 +110,15 @@ class JobResultBloc(
           }
         }
         is JobResultEvent.FilterChanged -> {
-          println("jobNameFilter changed to '${event.jobNamePrefix}'")
+          println("jobNameFilter changed to '${event.jobNamePrefix}', resultFilter changed to $resultFilter")
 
           withContext(dispatcher) {
-            filter = event.jobNamePrefix
+            jobNameFilter = event.jobNamePrefix
+            resultFilter = event.resultFilter
 
             val newState = JobResultState.Loaded(
-              jobNameFilter = filter,
+              jobNameFilter = jobNameFilter,
+              resultFilter = resultFilter,
               jobResults = filteredJobResults,
               selectedRow = selectedRow,
               latestRefresh = latestRefresh ?: error("FilterChanged event triggered, but state was not loaded."),

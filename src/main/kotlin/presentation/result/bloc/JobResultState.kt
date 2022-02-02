@@ -1,6 +1,7 @@
 package presentation.result.bloc
 
 import domain.JobResult
+import domain.ResultFilter
 import java.time.LocalDateTime
 
 sealed class JobResultState(
@@ -9,6 +10,7 @@ sealed class JobResultState(
   open val latestRefresh: LocalDateTime?,
   open val jobResults: List<JobResult>,
   open val status: String,
+  open val resultFilter: ResultFilter,
 ) {
   object Initial : JobResultState(
     jobNameFilter = "",
@@ -16,11 +18,13 @@ sealed class JobResultState(
     latestRefresh = null,
     jobResults = emptyList(),
     status = "Idle",
+    resultFilter = ResultFilter.All,
   )
 
   data class Error(
     override val jobNameFilter: String,
     override val latestRefresh: LocalDateTime?,
+    override val resultFilter: ResultFilter,
     val errorMessage: String,
   ) : JobResultState(
     jobNameFilter = jobNameFilter,
@@ -28,6 +32,7 @@ sealed class JobResultState(
     selectedRow = null,
     jobResults = emptyList(),
     status = errorMessage,
+    resultFilter = resultFilter,
   )
 
   data class Loading(
@@ -35,11 +40,13 @@ sealed class JobResultState(
     override val selectedRow: Int?,
     override val jobResults: List<JobResult>,
     override val latestRefresh: LocalDateTime?,
+    override val resultFilter: ResultFilter,
   ) : JobResultState(
     jobNameFilter = jobNameFilter,
     selectedRow = selectedRow,
     latestRefresh = latestRefresh,
     jobResults = jobResults,
+    resultFilter = resultFilter,
     status = "Refreshing...",
   )
 
@@ -48,11 +55,13 @@ sealed class JobResultState(
     override val selectedRow: Int?,
     override val jobResults: List<JobResult>,
     override val latestRefresh: LocalDateTime,
+    override val resultFilter: ResultFilter,
   ) : JobResultState(
     jobNameFilter = jobNameFilter,
     selectedRow = selectedRow,
     latestRefresh = latestRefresh,
     jobResults = jobResults,
+    resultFilter = resultFilter,
     status = "Idle",
   )
 }

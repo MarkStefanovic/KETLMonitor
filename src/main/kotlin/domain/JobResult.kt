@@ -1,5 +1,6 @@
 package domain
 
+import java.time.Duration
 import java.time.LocalDateTime
 
 data class JobResult(
@@ -10,6 +11,10 @@ data class JobResult(
   val skipReason: String?,
   val errorMessage: String?,
 ) {
+  val duration: Duration by lazy {
+    Duration.between(start, end)
+  }
+
   override fun toString(): String =
     """
       |JobResult [
