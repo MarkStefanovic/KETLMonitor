@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -116,7 +117,7 @@ fun JobResultListViewItem(
 
     Text(NumberFormat.getNumberInstance(Locale.US).format(jobResult.duration.seconds) + " sec")
 
-    Spacer(Modifier.weight(1f))
+    Spacer(Modifier.width(20.dp))
 
     Text(jobResult.end.format(abbreviatedTimestampFormat))
   }

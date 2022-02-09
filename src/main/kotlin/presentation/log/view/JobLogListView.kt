@@ -24,7 +24,6 @@ import androidx.compose.material.TextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -32,7 +31,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,8 +38,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import presentation.log.bloc.JobLogEvents
 import presentation.log.bloc.JobLogState
@@ -72,19 +68,19 @@ fun JobLogListView(
 
   var logLevelFilter by remember { mutableStateOf(state.logLevel) }
 
-  LaunchedEffect("jobNameFilter") {
-    snapshotFlow {
-      jobNameFilter
-    }
-      .distinctUntilChanged()
-      .debounce(500)
-      .collect {
-        events.setFilter(
-          jobNamePrefix = it,
-          logLevel = logLevelFilter,
-        )
-      }
-  }
+//  LaunchedEffect("jobNameFilter") {
+//    snapshotFlow {
+//      jobNameFilter
+//    }
+//      .distinctUntilChanged()
+//      .debounce(500)
+//      .collect {
+//        events.setFilter(
+//          jobNamePrefix = it,
+//          logLevel = logLevelFilter,
+//        )
+//      }
+//  }
 
   Column(
     modifier = Modifier.padding(6.dp)
@@ -131,8 +127,13 @@ fun JobLogListView(
     Row {
       TextField(
         value = jobNameFilter,
-        onValueChange = { txt ->
-          jobNameFilter = txt
+        onValueChange = {
+          jobNameFilter = it
+
+          events.setFilter(
+            jobNamePrefix = it,
+            logLevel = logLevelFilter,
+          )
         },
         label = { Text("Job", modifier = Modifier.fillMaxHeight()) },
         maxLines = 1,

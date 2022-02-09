@@ -7,7 +7,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
@@ -74,20 +73,18 @@ class JobStatusBloc(
 
             val jobStatuses = repo.getLatestStatuses()
 
-            withContext(dispatcher) {
-              latestRefresh = LocalDateTime.now()
+            latestRefresh = LocalDateTime.now()
 
-              unfilteredJobStatuses.clear()
-              unfilteredJobStatuses.addAll(jobStatuses)
+            unfilteredJobStatuses.clear()
+            unfilteredJobStatuses.addAll(jobStatuses)
 
-              val newState = JobStatusState.Loaded(
-                filter = filter,
-                jobStatuses = filteredJobStatuses,
-                latestRefresh = latestRefresh ?: error("Latest refresh is null, but the state is Loaded."),
-              )
+            val newState = JobStatusState.Loaded(
+              filter = filter,
+              jobStatuses = filteredJobStatuses,
+              latestRefresh = latestRefresh ?: error("Latest refresh is null, but the state is Loaded."),
+            )
 
-              _state.emit(newState)
-            }
+            _state.emit(newState)
           }
         }
       }

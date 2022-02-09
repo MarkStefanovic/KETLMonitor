@@ -1,3 +1,5 @@
+@file:Suppress("SqlResolve", "SqlNoDataSourceInspection")
+
 package adapter
 
 import domain.JobLogEntry

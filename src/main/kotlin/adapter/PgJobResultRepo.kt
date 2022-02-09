@@ -1,7 +1,11 @@
+@file:Suppress("SqlResolve", "SqlNoDataSourceInspection")
+
 package adapter
 
 import domain.JobResult
 import domain.JobResultRepo
+import domain.ResultFilter
+import java.sql.ResultSet
 import javax.sql.DataSource
 
 data class PgJobResultRepo(
@@ -9,9 +13,13 @@ data class PgJobResultRepo(
   val showSQL: Boolean,
   private val ds: DataSource,
 ) : JobResultRepo {
-  override suspend fun getLatestResults(): List<JobResult> {
-    // language=PostgreSQL
-    val sql = """
+  override suspend fun getLatestResults(
+    jobNameStartsWith: String?,
+    resultFilter: ResultFilter,
+  ): List<JobResult> =
+    if (resultFilter == ResultFilter.All) {
+      // language=PostgreSQL
+      val sql = """
       |  SELECT 
       |    j.job_name
       |  , j.start_time
@@ -20,45 +28,172 @@ data class PgJobResultRepo(
       |  , j.error_message
       |  , j.skip_reason
       |  FROM $schema.job_result_snapshot AS j
+      |  WHERE 
+      |    STARTS_WITH(j.job_name, ?)
       |  ORDER BY 
       |    j.end_time DESC
     """.trimMargin()
 
-    if (showSQL) {
-      println(
-        """
-        |PgJobResultsRepo.getLatestResult:
+      if (showSQL) {
+        println(
+          """
+        |${javaClass.simpleName}.getLatestResult(jobNameStartsWith = $jobNameStartsWith, resultFilter = $resultFilter):
         |  ${sql.split("\n").joinToString("\n    ")}
-      """.trimMargin()
-      )
-    }
+        """.trimMargin()
+        )
+      }
 
-    ds.connection.use { connection ->
-      connection.createStatement().use { statement ->
-        val result = statement.executeQuery(sql)
+      ds.connection.use { con ->
+        con.prepareStatement(sql).use { preparedStatement ->
+          preparedStatement.setString(1, jobNameStartsWith)
 
-        val jobResults = mutableListOf<JobResult>()
-        while (result.next()) {
-          val jobName = result.getString("job_name")
-          val startTime = result.getTimestamp("start_time").toLocalDateTime()
-          val endTime = result.getTimestamp("end_time").toLocalDateTime()
-          val resultTypeName = result.getString("result")
-          val errorMessage = result.getObject("error_message") as String?
-          val skipReason = result.getObject("skip_reason") as String?
+          val result = preparedStatement.executeQuery()
 
-          val jobResult = JobResult(
-            jobName = jobName,
-            result = resultTypeName,
-            start = startTime,
-            end = endTime,
-            skipReason = skipReason,
-            errorMessage = errorMessage,
-          )
-
-          jobResults.add(jobResult)
+          val results = mutableListOf<JobResult>()
+          while (result.next()) {
+            results.add(result.toDomain())
+          }
+          return results
         }
-        return jobResults
+      }
+    } else {
+      // language=PostgreSQL
+      val sql = """
+      |  SELECT 
+      |    j.job_name
+      |  , j.start_time
+      |  , j.end_time
+      |  , j.result
+      |  , j.error_message
+      |  , j.skip_reason
+      |  FROM $schema.job_result_snapshot AS j
+      |  WHERE 
+      |    STARTS_WITH(j.job_name, ?)
+      |    AND j.result = ?
+      |  ORDER BY 
+      |    j.end_time DESC
+    """.trimMargin()
+
+      if (showSQL) {
+        println(
+          """
+        |${javaClass.simpleName}.getLatestResult(jobNameStartsWith = $jobNameStartsWith, resultFilter = $resultFilter):
+        |  ${sql.split("\n").joinToString("\n    ")}
+        """.trimMargin()
+        )
+      }
+
+      ds.connection.use { con ->
+        con.prepareStatement(sql).use { preparedStatement ->
+          preparedStatement.setString(1, jobNameStartsWith)
+          preparedStatement.setString(2, resultFilter.dbName)
+
+          val result = preparedStatement.executeQuery()
+
+          val results = mutableListOf<JobResult>()
+          while (result.next()) {
+            results.add(result.toDomain())
+          }
+          return results
+        }
       }
     }
-  }
+
+  override suspend fun getResultsForJob(
+    selectedJob: String,
+    resultFilter: ResultFilter,
+  ): List<JobResult> =
+    if (resultFilter == ResultFilter.All) {
+      // language=PostgreSQL
+      val sql = """
+      |  SELECT 
+      |    j.job_name
+      |  , j.start_time
+      |  , j.end_time
+      |  , j.result
+      |  , j.error_message
+      |  , j.skip_reason
+      |  FROM $schema.job_result AS j
+      |  WHERE 
+      |    j.job_name = ?
+      |  ORDER BY 
+      |    j.end_time DESC
+      |  LIMIT 1000
+      """.trimMargin()
+
+      if (showSQL) {
+        println(
+          """
+          |${javaClass.simpleName}.getLatestResult(selectedJob = $selectedJob, resultFilter = $resultFilter):
+          |  ${sql.split("\n").joinToString("\n    ")}
+          """.trimMargin()
+        )
+      }
+
+      ds.connection.use { con ->
+        con.prepareStatement(sql).use { statement ->
+          statement.setString(1, selectedJob)
+
+          val result = statement.executeQuery()
+
+          val results = mutableListOf<JobResult>()
+          while (result.next()) {
+            results.add(result.toDomain())
+          }
+          return results
+        }
+      }
+    } else {
+      // language=PostgreSQL
+      val sql = """
+      |  SELECT
+      |    j.job_name
+      |  , j.start_time
+      |  , j.end_time
+      |  , j.result
+      |  , j.error_message
+      |  , j.skip_reason
+      |  FROM $schema.job_result AS j
+      |  WHERE
+      |    j.job_name = ?
+      |    AND j.result = ?
+      |  ORDER BY
+      |    j.end_time DESC
+      |  LIMIT 1000
+      """.trimMargin()
+
+      if (showSQL) {
+        println(
+          """
+          |${javaClass.simpleName}.getLatestResult(selectedJob = $selectedJob, resultFilter = $resultFilter):
+          |  ${sql.split("\n").joinToString("\n    ")}
+          """.trimMargin()
+        )
+      }
+
+      ds.connection.use { con ->
+        con.prepareStatement(sql).use { statement ->
+          statement.setString(1, selectedJob)
+          statement.setString(2, resultFilter.dbName)
+
+          val result = statement.executeQuery()
+
+          val results = mutableListOf<JobResult>()
+          while (result.next()) {
+            results.add(result.toDomain())
+          }
+          return results
+        }
+      }
+    }
 }
+
+fun ResultSet.toDomain(): JobResult =
+  JobResult(
+    jobName = this.getString("job_name"),
+    start = this.getTimestamp("start_time").toLocalDateTime(),
+    end = this.getTimestamp("end_time").toLocalDateTime(),
+    result = this.getString("result"),
+    errorMessage = this.getObject("error_message") as String?,
+    skipReason = this.getObject("skip_reason") as String?,
+  )

@@ -18,7 +18,7 @@ interface JobResultEvents {
 
   fun refresh()
 
-  fun setFilter(jobNamePrefix: String, result: ResultFilter)
+  fun setFilter(selectedJob: String, jobNamePrefix: String, result: ResultFilter)
 }
 
 object DefaultJobResultEvents : JobResultEvents {
@@ -46,11 +46,12 @@ object DefaultJobResultEvents : JobResultEvents {
     }
   }
 
-  override fun setFilter(jobNamePrefix: String, result: ResultFilter) {
+  override fun setFilter(selectedJob: String, jobNamePrefix: String, result: ResultFilter) {
     scope.launch {
       withContext(dispatcher) {
         _stream.emit(
           JobResultEvent.FilterChanged(
+            selectedJob = selectedJob,
             jobNamePrefix = jobNamePrefix,
             resultFilter = result,
           )

@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import presentation.result.bloc.JobResultEvents
 import presentation.result.bloc.JobResultState
 import presentation.shared.EnumDropdown
+import presentation.shared.JobNameDropdown
 import presentation.shared.abbreviatedTimestampFormat
 
 @Composable
@@ -67,6 +68,23 @@ fun JobResultListView(
 
   var resultFilter: ResultFilter by remember { mutableStateOf(state.resultFilter) }
 
+  var selectedJob: String by remember { mutableStateOf(state.selectedJob) }
+
+//  LaunchedEffect("jobNameFilter") {
+//    snapshotFlow {
+//      jobNameFilter
+//    }
+//      .distinctUntilChanged()
+//      .debounce(500)
+//      .collect {
+//        events.setFilter(
+//          jobNamePrefix = it,
+//          selectedJob = selectedJob,
+//          result = resultFilter
+//        )
+//      }
+//  }
+
   Column(
     modifier = Modifier.padding(6.dp)
   ) {
@@ -85,7 +103,9 @@ fun JobResultListView(
       }
 
       Button(
-        onClick = events::refresh,
+        onClick = {
+          events.refresh()
+        },
         colors = ButtonDefaults.buttonColors(backgroundColor = Color.DarkGray),
         border = BorderStroke(width = 1.dp, color = Color.White),
       ) {
@@ -104,8 +124,6 @@ fun JobResultListView(
 
     Spacer(Modifier.height(6.dp))
 
-    println("state: $state")
-
     when (val st = state) {
       JobResultState.Initial -> {
         println("${javaClass.simpleName} initialized")
@@ -119,12 +137,31 @@ fun JobResultListView(
 
               events.setFilter(
                 jobNamePrefix = it,
-                result = resultFilter,
+                selectedJob = selectedJob,
+                result = resultFilter
               )
             },
+//            onValueChangedFinished = {},
             label = { Text("Job", modifier = Modifier.fillMaxHeight()) },
             maxLines = 1,
             modifier = Modifier.weight(1f).height(65.dp),
+          )
+
+          Spacer(Modifier.width(10.dp))
+
+          JobNameDropdown(
+            label = "Job Name",
+            options = st.jobNameOptions,
+            value = selectedJob,
+            onValueChange = {
+              selectedJob = it
+
+              events.setFilter(
+                selectedJob = selectedJob,
+                jobNamePrefix = jobNameFilter,
+                result = resultFilter,
+              )
+            }
           )
 
           Spacer(Modifier.width(10.dp))
@@ -136,6 +173,7 @@ fun JobResultListView(
               resultFilter = it
 
               events.setFilter(
+                selectedJob = selectedJob,
                 jobNamePrefix = jobNameFilter,
                 result = it,
               )
@@ -143,6 +181,7 @@ fun JobResultListView(
             modifier = Modifier.width(160.dp),
           )
         }
+
         LazyColumn(
           contentPadding = PaddingValues(horizontal = 2.dp),
           state = listState,

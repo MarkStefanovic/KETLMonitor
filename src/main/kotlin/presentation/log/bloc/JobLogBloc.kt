@@ -43,8 +43,6 @@ class JobLogBloc(
 
   suspend fun start() {
     events.stream.collect { event: JobLogEvent ->
-//      println("JobLogBloc:\n  event: $event")
-
       withContext(dispatcher) {
         when (event) {
           is JobLogEvent.FilterChanged -> {
@@ -70,15 +68,13 @@ class JobLogBloc(
             )
           }
         }
-      }
 
-      val logEntries = repo.where(
-        jobNamePrefix = filter,
-        logLevel = logLevel,
-        n = maxEntriesToDisplay,
-      )
+        val logEntries = repo.where(
+          jobNamePrefix = filter,
+          logLevel = logLevel,
+          n = maxEntriesToDisplay,
+        )
 
-      withContext(dispatcher) {
         latestRefresh = LocalDateTime.now()
 
         _state.emit(

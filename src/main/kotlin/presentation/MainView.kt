@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.StateFlow
 import presentation.log.bloc.JobLogEvents
 import presentation.log.bloc.JobLogState
@@ -23,6 +24,7 @@ import presentation.status.bloc.JobStatusEvents
 import presentation.status.bloc.JobStatusState
 import presentation.status.view.JobStatusListView
 
+@FlowPreview
 @Composable
 @ExperimentalMaterialApi
 @ExperimentalFoundationApi
