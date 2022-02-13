@@ -3,11 +3,13 @@ package presentation.result.view
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -16,9 +18,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.Divider
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
 import androidx.compose.material.icons.Icons
@@ -34,8 +38,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import domain.ResultFilter
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -89,18 +95,18 @@ fun JobResultListView(
     modifier = Modifier.padding(6.dp)
   ) {
     Row {
-      AnimatedVisibility(visible = showScrollToTopButton) {
-        IconButton(onClick = {
-          coroutineScope.launch {
-            listState.animateScrollToItem(index = 0)
-          }
-        }) {
-          Icon(
-            imageVector = Icons.Filled.KeyboardArrowUp,
-            contentDescription = "Scroll to Top",
-          )
-        }
-      }
+//      AnimatedVisibility(visible = showScrollToTopButton) {
+//        IconButton(onClick = {
+//          coroutineScope.launch {
+//            listState.animateScrollToItem(index = 0)
+//          }
+//        }) {
+//          Icon(
+//            imageVector = Icons.Filled.KeyboardArrowUp,
+//            contentDescription = "Scroll to Top",
+//          )
+//        }
+//      }
 
       Button(
         onClick = {
@@ -186,6 +192,66 @@ fun JobResultListView(
           contentPadding = PaddingValues(horizontal = 2.dp),
           state = listState,
         ) {
+          stickyHeader {
+            Column {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().height(30.dp).background(color = MaterialTheme.colors.background),
+              ) {
+                AnimatedVisibility(visible = showScrollToTopButton) {
+                  IconButton(onClick = {
+                    coroutineScope.launch {
+                      listState.animateScrollToItem(index = 0)
+                    }
+                  }) {
+                    Icon(
+                      imageVector = Icons.Filled.KeyboardArrowUp,
+                      contentDescription = "Scroll to Top",
+                    )
+                  }
+                }
+
+                val startPos = if (showScrollToTopButton) {
+                  6.dp
+                } else {
+                  54.dp
+                }
+
+                Text(
+                  text = "Job",
+                  modifier = Modifier.padding(start = startPos),
+                  style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                  ),
+                )
+
+                Spacer(Modifier.weight(1f))
+
+                Text(
+                  text = "Execution Time",
+                  style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                  ),
+                )
+
+                Spacer(Modifier.width(90.dp))
+
+                Text(
+                  text = "Finished",
+                  style = TextStyle(
+                    fontSize = 16.sp,
+//                    textDecoration = TextDecoration.Underline,
+                    fontWeight = FontWeight.Bold,
+                  ),
+                )
+              }
+
+              Divider(modifier = Modifier.fillMaxWidth(), color = Color.White)
+            }
+          }
+
           items(items = st.jobResults) { jobResult ->
             JobResultListViewItem(jobResult = jobResult)
           }
