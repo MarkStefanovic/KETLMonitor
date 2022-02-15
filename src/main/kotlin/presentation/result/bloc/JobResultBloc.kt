@@ -10,9 +10,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
 import java.util.concurrent.Executors
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -44,112 +46,113 @@ class JobResultBloc(
   }
 
   suspend fun start() {
-    events.stream.collect { event ->
-      println("JobResultDashBloc received refresh event.")
+    withContext(dispatcher) {
 
-      when (event) {
-        is JobResultEvent.RowSelected -> {
-          when (val st = state.value) {
-            is JobResultState.Error -> throw Exception("Row was selected, but state was not Loaded.")
-            JobResultState.Initial -> throw Exception("Row was selected, but state was not Loaded.")
-            is JobResultState.Loaded -> {
-              withContext(dispatcher) {
-                val newState = JobResultState.Loaded(
-                  jobNameFilter = jobNameFilter,
-                  resultFilter = resultFilter,
-                  jobResults = st.jobResults,
-                  jobNameOptions = jobNameOptions(st.jobResults),
-                  selectedRow = state.value.selectedRow,
-                  latestRefresh = st.latestRefresh,
-                  selectedJob = selectedJob,
-                )
+      events.stream.collect { event ->
+        println("JobResultDashBloc received event: $event")
 
-                _state.emit(newState)
+        withTimeout(60.seconds) {
+          when (event) {
+            is JobResultEvent.RowSelected -> {
+              when (val st = state.value) {
+                is JobResultState.Error -> throw Exception("Row was selected, but state was not Loaded.")
+                JobResultState.Initial -> throw Exception("Row was selected, but state was not Loaded.")
+                is JobResultState.Loaded -> {
+                  withContext(dispatcher) {
+                    val newState = JobResultState.Loaded(
+                      jobNameFilter = jobNameFilter,
+                      resultFilter = resultFilter,
+                      jobResults = st.jobResults,
+                      jobNameOptions = jobNameOptions(st.jobResults),
+                      selectedRow = state.value.selectedRow,
+                      latestRefresh = st.latestRefresh,
+                      selectedJob = selectedJob,
+                    )
+
+                    _state.emit(newState)
+                  }
+                }
+                is JobResultState.Loading -> TODO()
               }
             }
-            is JobResultState.Loading -> TODO()
-          }
-        }
-        is JobResultEvent.RefreshButtonClicked -> {
-          withContext(dispatcher) {
-            val loadingState = JobResultState.Loading(
-              jobNameFilter = jobNameFilter,
-              resultFilter = resultFilter,
-              jobResults = state.value.jobResults,
-              jobNameOptions = jobNameOptions(state.value.jobResults),
-              selectedRow = selectedRow,
-              selectedJob = selectedJob,
-              latestRefresh = latestRefresh,
-            )
-            _state.emit(loadingState)
-
-            val newJobResults = if (selectedJob == "All") {
-              repo.getLatestResults(
-                jobNameStartsWith = jobNameFilter,
+            is JobResultEvent.RefreshButtonClicked -> {
+              val loadingState = JobResultState.Loading(
+                jobNameFilter = jobNameFilter,
                 resultFilter = resultFilter,
-              )
-            } else {
-              repo.getResultsForJob(
+                jobResults = state.value.jobResults,
+                jobNameOptions = jobNameOptions(state.value.jobResults),
+                selectedRow = selectedRow,
                 selectedJob = selectedJob,
-                resultFilter = resultFilter,
+                latestRefresh = latestRefresh,
               )
-            }
+              _state.emit(loadingState)
 
-            val lr = LocalDateTime.now()
+              val newJobResults = if (selectedJob == "All") {
+                repo.getLatestResults(
+                  jobNameStartsWith = jobNameFilter,
+                  resultFilter = resultFilter,
+                )
+              } else {
+                repo.getResultsForJob(
+                  selectedJob = selectedJob,
+                  resultFilter = resultFilter,
+                )
+              }
 
-            latestRefresh = lr
-//            unfilteredJobResults.clear()
-//            unfilteredJobResults.addAll(newJobResults)
+              val lr = LocalDateTime.now()
 
-            val loadedState = JobResultState.Loaded(
-              jobNameFilter = jobNameFilter,
-              resultFilter = resultFilter,
-              jobResults = newJobResults,
-              jobNameOptions = jobNameOptions(newJobResults),
-              selectedJob = selectedJob,
-              selectedRow = selectedRow,
-              latestRefresh = lr,
-            )
+              latestRefresh = lr
+              //            unfilteredJobResults.clear()
+              //            unfilteredJobResults.addAll(newJobResults)
 
-            println("Emitting new job results after refresh.")
-
-            _state.emit(loadedState)
-          }
-        }
-        is JobResultEvent.FilterChanged -> {
-          println(
-            "jobNameFilter changed to '${event.jobNamePrefix}', selectedJob changed to '${event.selectedJob}', " +
-              "and resultFilter changed to $resultFilter"
-          )
-
-          withContext(dispatcher) {
-            jobNameFilter = event.jobNamePrefix
-            resultFilter = event.resultFilter
-            selectedJob = event.selectedJob
-
-            val newJobResults = if (selectedJob == "All") {
-              repo.getLatestResults(
-                jobNameStartsWith = jobNameFilter,
+              val loadedState = JobResultState.Loaded(
+                jobNameFilter = jobNameFilter,
                 resultFilter = resultFilter,
-              )
-            } else {
-              repo.getResultsForJob(
+                jobResults = newJobResults,
+                jobNameOptions = jobNameOptions(newJobResults),
                 selectedJob = selectedJob,
-                resultFilter = resultFilter,
+                selectedRow = selectedRow,
+                latestRefresh = lr,
               )
+
+              println("Emitting new job results after refresh.")
+
+              _state.emit(loadedState)
             }
+            is JobResultEvent.FilterChanged -> {
+              println(
+                "jobNameFilter changed to '${event.jobNamePrefix}', selectedJob changed to '${event.selectedJob}', " +
+                  "and resultFilter changed to $resultFilter"
+              )
 
-            val newState = JobResultState.Loaded(
-              jobNameFilter = jobNameFilter,
-              resultFilter = resultFilter,
-              jobResults = newJobResults,
-              jobNameOptions = jobNameOptions(newJobResults),
-              selectedJob = selectedJob,
-              selectedRow = selectedRow,
-              latestRefresh = latestRefresh ?: error("FilterChanged event triggered, but state was not loaded."),
-            )
+              jobNameFilter = event.jobNamePrefix
+              resultFilter = event.resultFilter
+              selectedJob = event.selectedJob
 
-            _state.emit(newState)
+              val newJobResults = if (selectedJob == "All") {
+                repo.getLatestResults(
+                  jobNameStartsWith = jobNameFilter,
+                  resultFilter = resultFilter,
+                )
+              } else {
+                repo.getResultsForJob(
+                  selectedJob = selectedJob,
+                  resultFilter = resultFilter,
+                )
+              }
+
+              val newState = JobResultState.Loaded(
+                jobNameFilter = jobNameFilter,
+                resultFilter = resultFilter,
+                jobResults = newJobResults,
+                jobNameOptions = jobNameOptions(newJobResults),
+                selectedJob = selectedJob,
+                selectedRow = selectedRow,
+                latestRefresh = latestRefresh ?: error("FilterChanged event triggered, but state was not loaded."),
+              )
+
+              _state.emit(newState)
+            }
           }
         }
       }

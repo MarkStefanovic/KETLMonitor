@@ -1,3 +1,5 @@
+@file:Suppress("JSON_FORMAT_REDUNDANT")
+
 import adapter.PgJobLogRepo
 import adapter.PgJobResultRepo
 import adapter.PgJobStatusRepo
@@ -104,7 +106,7 @@ fun main() = application {
     showSQL = false,
   )
 
-  val jobResultEvents = DefaultJobResultEvents
+  val jobResultEvents = DefaultJobResultEvents()
 
   val jobResultBloc = JobResultBloc(
     repo = pgJobResultRepo,
@@ -119,7 +121,7 @@ fun main() = application {
     jobResultBloc.autorefreshEvery(1.minutes)
   }
 
-  val jobLogEvents = DefaultJobLogEvents
+  val jobLogEvents = DefaultJobLogEvents()
 
   val jobLogBloc = JobLogBloc(
     repo = pgJobLogRepo,
@@ -135,7 +137,7 @@ fun main() = application {
     jobLogBloc.autorefreshEvery(1.minutes)
   }
 
-  val jobStatusEvents: JobStatusEvents = DefaultJobStatusEvents
+  val jobStatusEvents: JobStatusEvents = DefaultJobStatusEvents()
 
   val jobStatusBloc = JobStatusBloc(
     repo = pgJobStatusRepo,

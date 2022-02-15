@@ -4,6 +4,7 @@ import domain.LogLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -18,8 +19,11 @@ interface JobLogEvents {
 }
 
 @FlowPreview
-object DefaultJobLogEvents : JobLogEvents {
-  private val _stream = MutableSharedFlow<JobLogEvent>()
+class DefaultJobLogEvents : JobLogEvents {
+  private val _stream = MutableSharedFlow<JobLogEvent>(
+    extraBufferCapacity = 5,
+    onBufferOverflow = BufferOverflow.DROP_OLDEST,
+  )
 
   override val stream: SharedFlow<JobLogEvent> = _stream.asSharedFlow()
 

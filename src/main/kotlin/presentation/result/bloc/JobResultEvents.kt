@@ -4,6 +4,7 @@ import domain.ResultFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -21,8 +22,11 @@ interface JobResultEvents {
   fun setFilter(selectedJob: String, jobNamePrefix: String, result: ResultFilter)
 }
 
-object DefaultJobResultEvents : JobResultEvents {
-  private val _stream = MutableSharedFlow<JobResultEvent>()
+class DefaultJobResultEvents : JobResultEvents {
+  private val _stream = MutableSharedFlow<JobResultEvent>(
+    extraBufferCapacity = 3,
+    onBufferOverflow = BufferOverflow.DROP_OLDEST,
+  )
 
   override val stream = _stream.asSharedFlow()
 
