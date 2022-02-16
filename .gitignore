@@ -41,3 +41,5 @@ local.properties
 *.sqlite
 config.json
 NOTES.txt
+error.log
+error.log.lck

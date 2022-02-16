@@ -22,6 +22,7 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import domain.Config
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.MainScope
@@ -37,6 +38,9 @@ import presentation.status.bloc.DefaultJobStatusEvents
 import presentation.status.bloc.JobStatusBloc
 import presentation.status.bloc.JobStatusEvents
 import java.io.File
+import java.util.logging.FileHandler
+import java.util.logging.Level
+import java.util.logging.Logger
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
@@ -62,6 +66,16 @@ fun getConfig(): Config {
 @ExperimentalCoroutinesApi
 @ExperimentalFoundationApi
 fun main() = application {
+  val logger = Logger.getLogger("KETL Monitor")
+
+  val handler = FileHandler("./error.log", 1048576L, 1, true).apply {
+    level = Level.SEVERE
+  }
+
+  logger.addHandler(handler)
+
+  logger.info("Starting KETL Monitor...")
+
   try {
     Class.forName("org.postgresql.Driver")
   } catch (ex: ClassNotFoundException) {
@@ -111,6 +125,8 @@ fun main() = application {
   val jobResultBloc = JobResultBloc(
     repo = pgJobResultRepo,
     events = jobResultEvents,
+    logger = logger,
+    dispatcher = Dispatchers.Default,
   )
 
   mainScope.launch {
@@ -127,6 +143,8 @@ fun main() = application {
     repo = pgJobLogRepo,
     events = jobLogEvents,
     maxEntriesToDisplay = 1000,
+    logger = logger,
+    dispatcher = Dispatchers.Default,
   )
 
   mainScope.launch {
@@ -142,6 +160,8 @@ fun main() = application {
   val jobStatusBloc = JobStatusBloc(
     repo = pgJobStatusRepo,
     events = jobStatusEvents,
+    logger = logger,
+    dispatcher = Dispatchers.Default,
   )
 
   mainScope.launch {
