@@ -3,6 +3,7 @@ package presentation.result.bloc
 import domain.JobResult
 import domain.JobResultRepo
 import domain.ResultFilter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
@@ -43,7 +44,7 @@ class JobResultBloc(
   private var selectedJob: String = "All"
 
   suspend fun autorefreshEvery(duration: Duration) = coroutineScope {
-    while (coroutineContext.isActive) {
+    while (isActive) {
       events.refresh()
 
       delay(duration)
@@ -159,6 +160,9 @@ class JobResultBloc(
             }
           }
         }
+      } catch (ce: CancellationException) {
+        println("${javaClass.simpleName} closed.")
+        throw ce
       } catch (e: Throwable) {
         logger.severe(e.stackTraceToString())
         delay(10.seconds)

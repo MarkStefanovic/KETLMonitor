@@ -21,11 +21,12 @@ import androidx.compose.ui.window.rememberWindowState
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import domain.Config
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -35,8 +36,11 @@ import presentation.log.bloc.JobLogBloc
 import presentation.result.bloc.DefaultJobResultEvents
 import presentation.result.bloc.JobResultBloc
 import presentation.status.bloc.DefaultJobStatusEvents
-import presentation.status.bloc.JobStatusBloc
+import presentation.status.bloc.DefaultJobStatusStates
 import presentation.status.bloc.JobStatusEvents
+import presentation.status.bloc.JobStatusStates
+import presentation.status.bloc.autorefreshJobStatuses
+import presentation.status.bloc.jobStatusBloc
 import java.io.File
 import java.util.logging.FileHandler
 import java.util.logging.Level
@@ -89,7 +93,9 @@ fun main() = application {
     position = WindowPosition.Aligned(Alignment.TopStart),
   )
 
-  val mainScope = MainScope()
+  val backgroundDispatcher = Dispatchers.Default
+
+  val backgroundScope = CoroutineScope(backgroundDispatcher)
 
   val config = getConfig()
 
@@ -126,16 +132,8 @@ fun main() = application {
     repo = pgJobResultRepo,
     events = jobResultEvents,
     logger = logger,
-    dispatcher = Dispatchers.Default,
+    dispatcher = backgroundDispatcher,
   )
-
-  mainScope.launch {
-    jobResultBloc.start()
-  }
-
-  mainScope.launch {
-    jobResultBloc.autorefreshEvery(1.minutes)
-  }
 
   val jobLogEvents = DefaultJobLogEvents()
 
@@ -144,36 +142,51 @@ fun main() = application {
     events = jobLogEvents,
     maxEntriesToDisplay = 1000,
     logger = logger,
-    dispatcher = Dispatchers.Default,
+    dispatcher = backgroundDispatcher,
   )
-
-  mainScope.launch {
-    jobLogBloc.start()
-  }
-
-  mainScope.launch {
-    jobLogBloc.autorefreshEvery(1.minutes)
-  }
 
   val jobStatusEvents: JobStatusEvents = DefaultJobStatusEvents()
 
-  val jobStatusBloc = JobStatusBloc(
-    repo = pgJobStatusRepo,
-    events = jobStatusEvents,
-    logger = logger,
-    dispatcher = Dispatchers.Default,
-  )
+  val jobStatusStates: JobStatusStates = DefaultJobStatusStates()
 
-  mainScope.launch {
-    jobStatusBloc.start()
-  }
+  with(backgroundScope) {
+    launch {
+      jobResultBloc.start()
+    }
 
-  mainScope.launch {
-    jobStatusBloc.autorefreshEvery(1.minutes)
+    launch {
+      jobLogBloc.start()
+    }
+
+    launch {
+      jobResultBloc.autorefreshEvery(1.minutes)
+    }
+
+    launch {
+      jobLogBloc.autorefreshEvery(1.minutes)
+    }
+
+    launch {
+      jobStatusBloc(
+        states = jobStatusStates,
+        repo = pgJobStatusRepo,
+        events = jobStatusEvents,
+        logger = logger,
+        dispatcher = backgroundDispatcher,
+      )
+    }
+
+    launch {
+      autorefreshJobStatuses(events = jobStatusEvents, duration = 1.minutes)
+    }
   }
 
   Window(
-    onCloseRequest = ::exitApplication,
+    onCloseRequest = {
+      backgroundScope.cancel()
+      exitApplication()
+      exitProcess(0)
+    },
     state = state,
     title = "KETL Monitor",
     resizable = true,
@@ -187,7 +200,7 @@ fun main() = application {
         MainView(
           jobResultsStateFlow = jobResultBloc.state,
           jobResultsEvents = jobResultEvents,
-          jobStatusStateFlow = jobStatusBloc.state,
+          jobStatusStateFlow = jobStatusStates.stream,
           jobStatusEvents = jobStatusEvents,
           jobLogStateFlow = jobLogBloc.state,
           jobLogEvents = jobLogEvents,

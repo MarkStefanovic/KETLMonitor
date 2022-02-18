@@ -2,6 +2,7 @@ package presentation.log.bloc
 
 import domain.JobLogRepo
 import domain.LogLevel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -39,9 +40,8 @@ class JobLogBloc(
   private var logLevel = LogLevel.Any
 
   suspend fun autorefreshEvery(duration: Duration) = coroutineScope {
-    while (coroutineContext.isActive) {
+    while (isActive) {
       events.refresh()
-
       delay(duration)
     }
   }
@@ -96,6 +96,9 @@ class JobLogBloc(
             )
           }
         }
+      } catch (ce: CancellationException) {
+        println("${javaClass.simpleName} closed.")
+        throw ce
       } catch (e: Exception) {
         logger.severe(e.stackTraceToString())
         delay(10.seconds)
