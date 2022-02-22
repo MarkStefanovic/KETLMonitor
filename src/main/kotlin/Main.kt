@@ -100,10 +100,6 @@ fun main() = application {
     position = WindowPosition.Aligned(Alignment.TopStart),
   )
 
-  val backgroundDispatcher = Dispatchers.Default
-
-  val backgroundScope = CoroutineScope(backgroundDispatcher)
-
   val config = getConfig()
 
   val hikariConfig = HikariConfig().apply {
@@ -151,7 +147,6 @@ fun main() = application {
       events = jobResultEvents,
       states = jobResultStates,
       logger = logger,
-      dispatcher = backgroundDispatcher,
     )
 
     jobLogBloc(
@@ -160,7 +155,6 @@ fun main() = application {
       states = jobLogStates,
       maxEntriesToDisplay = 1000,
       logger = logger,
-      dispatcher = backgroundDispatcher,
     )
 
     jobStatusBloc(
@@ -168,7 +162,6 @@ fun main() = application {
       repo = pgJobStatusRepo,
       events = jobStatusEvents,
       logger = logger,
-      dispatcher = backgroundDispatcher,
     )
 
     refreshJobResultsEvery(events = jobResultEvents, duration = 1.minutes)
@@ -180,7 +173,7 @@ fun main() = application {
 
   Window(
     onCloseRequest = {
-      backgroundScope.cancel()
+      scope.cancel()
       exitApplication()
       exitProcess(0)
     },

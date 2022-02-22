@@ -3,13 +3,14 @@ package presentation.log.bloc
 import domain.JobLogRepo
 import domain.LogLevel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
@@ -18,6 +19,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 @FlowPreview
+@DelicateCoroutinesApi
 @ExperimentalCoroutinesApi
 fun CoroutineScope.jobLogBloc(
   repo: JobLogRepo,
@@ -25,9 +27,8 @@ fun CoroutineScope.jobLogBloc(
   states: JobLogStates,
   maxEntriesToDisplay: Int,
   logger: Logger,
-  dispatcher: CoroutineDispatcher,
 ) {
-  val singleThreadedDispatcher = dispatcher.limitedParallelism(1)
+  val singleThreadedContext = newSingleThreadContext("jobResultBloc")
 
   var latestRefresh: LocalDateTime? = null
 
@@ -37,10 +38,10 @@ fun CoroutineScope.jobLogBloc(
 
   launch {
     events.stream.collect { event: JobLogEvent ->
-      println("${javaClass.simpleName} received event: $event")
+      println("jobResultBloc received event: $event")
 
       try {
-        withContext(singleThreadedDispatcher) {
+        withContext(singleThreadedContext) {
           withTimeout(60.seconds) {
             when (event) {
               is JobLogEvent.FilterChanged -> {

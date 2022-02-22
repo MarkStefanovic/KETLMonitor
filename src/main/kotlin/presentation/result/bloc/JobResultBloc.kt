@@ -4,12 +4,13 @@ import domain.JobResult
 import domain.JobResultRepo
 import domain.ResultFilter
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
@@ -19,15 +20,15 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
+@DelicateCoroutinesApi
 @ExperimentalCoroutinesApi
 fun CoroutineScope.jobResultBloc(
   repo: JobResultRepo,
   events: JobResultEvents,
   states: JobResultStates,
   logger: Logger,
-  dispatcher: CoroutineDispatcher,
 ) {
-  val singleThreadedDispatcher = dispatcher.limitedParallelism(1)
+  val singleThreadedContext = newSingleThreadContext("jobResultBloc")
 
   var latestRefresh: LocalDateTime? = null
 
@@ -40,8 +41,8 @@ fun CoroutineScope.jobResultBloc(
   launch {
     events.stream.collect { event ->
       try {
-        withContext(singleThreadedDispatcher) {
-          println("${javaClass.simpleName} received event: $event")
+        withContext(singleThreadedContext) {
+          println("jobResultBloc received event: $event")
 
           withTimeout(60.seconds) {
             when (event) {
@@ -110,12 +111,14 @@ fun CoroutineScope.jobResultBloc(
             }
           }
         }
-      } catch (ce: CancellationException) {
-        println("${javaClass.simpleName} closed.")
-        throw ce
-      } catch (e: Throwable) {
+      } catch (e: Exception) {
+        if (e is CancellationException) {
+          println("Cancelling jobResultBloc...")
+          throw e
+        }
+
         logger.severe(e.stackTraceToString())
-        delay(10.seconds)
+        throw e
       }
     }
   }

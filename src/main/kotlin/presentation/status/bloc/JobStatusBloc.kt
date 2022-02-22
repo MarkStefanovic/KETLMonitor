@@ -3,12 +3,14 @@ package presentation.status.bloc
 import domain.JobStatus
 import domain.JobStatusRepo
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.newSingleThreadContext
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
 import java.util.logging.Logger
@@ -17,15 +19,15 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
+@DelicateCoroutinesApi
 @ExperimentalCoroutinesApi
 fun CoroutineScope.jobStatusBloc(
   states: JobStatusStates,
   events: JobStatusEvents,
   repo: JobStatusRepo,
   logger: Logger,
-  dispatcher: CoroutineDispatcher,
 ) {
-  val singleThreadedDispatcher = dispatcher.limitedParallelism(1)
+  val singleThreadedContext = newSingleThreadContext("jobStatusBloc")
 
   var latestRefresh: LocalDateTime? = null
 
@@ -38,7 +40,7 @@ fun CoroutineScope.jobStatusBloc(
       println("jobStatusBloc received event: $event")
 
       try {
-        launch(singleThreadedDispatcher) {
+        withContext(singleThreadedContext) {
           withTimeout(60.seconds) {
             when (event) {
               is JobStatusEvent.Error -> states.emit(
@@ -111,12 +113,10 @@ fun CoroutineScope.jobStatusBloc(
 fun CoroutineScope.refreshJobStatusesEvery(
   events: JobStatusEvents,
   duration: Duration,
-) {
-  launch {
-    while (isActive) {
-      events.refresh()
-      delay(duration)
-    }
+) = launch {
+  while (isActive) {
+    events.refresh()
+    delay(duration)
   }
 }
 
