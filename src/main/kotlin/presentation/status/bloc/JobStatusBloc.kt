@@ -9,7 +9,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
 import java.util.logging.Logger
@@ -39,7 +38,7 @@ fun CoroutineScope.jobStatusBloc(
       println("jobStatusBloc received event: $event")
 
       try {
-        withContext(singleThreadedDispatcher) {
+        launch(singleThreadedDispatcher) {
           withTimeout(60.seconds) {
             when (event) {
               is JobStatusEvent.Error -> states.emit(
@@ -95,19 +94,21 @@ fun CoroutineScope.jobStatusBloc(
             }
           }
         }
-      } catch (ce: CancellationException) {
-        println("jobStatusBloc closed.")
-        throw ce
-      } catch (e: Throwable) {
+      } catch (e: Exception) {
+        if (e is CancellationException) {
+          println("Cancelling jobStatusBloc...")
+          throw e
+        }
+
         logger.severe(e.stackTraceToString())
 
-        delay(10.seconds)
+        throw e
       }
     }
   }
 }
 
-fun CoroutineScope.autorefreshJobStatuses(
+fun CoroutineScope.refreshJobStatusesEvery(
   events: JobStatusEvents,
   duration: Duration,
 ) {

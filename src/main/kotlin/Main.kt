@@ -26,21 +26,26 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import presentation.MainView
 import presentation.log.bloc.DefaultJobLogEvents
-import presentation.log.bloc.JobLogBloc
+import presentation.log.bloc.DefaultJobLogStates
+import presentation.log.bloc.jobLogBloc
+import presentation.log.bloc.refreshJobLogEvery
 import presentation.result.bloc.DefaultJobResultEvents
-import presentation.result.bloc.JobResultBloc
+import presentation.result.bloc.DefaultJobResultStates
+import presentation.result.bloc.jobResultBloc
+import presentation.result.bloc.refreshJobResultsEvery
 import presentation.status.bloc.DefaultJobStatusEvents
 import presentation.status.bloc.DefaultJobStatusStates
 import presentation.status.bloc.JobStatusEvents
 import presentation.status.bloc.JobStatusStates
-import presentation.status.bloc.autorefreshJobStatuses
 import presentation.status.bloc.jobStatusBloc
+import presentation.status.bloc.refreshJobStatusesEvery
 import java.io.File
 import java.util.logging.FileHandler
 import java.util.logging.Level
@@ -48,6 +53,8 @@ import java.util.logging.Logger
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
+
+val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
 fun getConfig(): Config {
   val configFile = File("./config.json")
@@ -128,57 +135,47 @@ fun main() = application {
 
   val jobResultEvents = DefaultJobResultEvents()
 
-  val jobResultBloc = JobResultBloc(
-    repo = pgJobResultRepo,
-    events = jobResultEvents,
-    logger = logger,
-    dispatcher = backgroundDispatcher,
-  )
+  val jobResultStates = DefaultJobResultStates()
 
   val jobLogEvents = DefaultJobLogEvents()
 
-  val jobLogBloc = JobLogBloc(
-    repo = pgJobLogRepo,
-    events = jobLogEvents,
-    maxEntriesToDisplay = 1000,
-    logger = logger,
-    dispatcher = backgroundDispatcher,
-  )
+  val jobLogStates = DefaultJobLogStates()
 
   val jobStatusEvents: JobStatusEvents = DefaultJobStatusEvents()
 
   val jobStatusStates: JobStatusStates = DefaultJobStatusStates()
 
-  with(backgroundScope) {
-    launch {
-      jobResultBloc.start()
-    }
+  scope.launch {
+    jobResultBloc(
+      repo = pgJobResultRepo,
+      events = jobResultEvents,
+      states = jobResultStates,
+      logger = logger,
+      dispatcher = backgroundDispatcher,
+    )
 
-    launch {
-      jobLogBloc.start()
-    }
+    jobLogBloc(
+      repo = pgJobLogRepo,
+      events = jobLogEvents,
+      states = jobLogStates,
+      maxEntriesToDisplay = 1000,
+      logger = logger,
+      dispatcher = backgroundDispatcher,
+    )
 
-    launch {
-      jobResultBloc.autorefreshEvery(1.minutes)
-    }
+    jobStatusBloc(
+      states = jobStatusStates,
+      repo = pgJobStatusRepo,
+      events = jobStatusEvents,
+      logger = logger,
+      dispatcher = backgroundDispatcher,
+    )
 
-    launch {
-      jobLogBloc.autorefreshEvery(1.minutes)
-    }
+    refreshJobResultsEvery(events = jobResultEvents, duration = 1.minutes)
 
-    launch {
-      jobStatusBloc(
-        states = jobStatusStates,
-        repo = pgJobStatusRepo,
-        events = jobStatusEvents,
-        logger = logger,
-        dispatcher = backgroundDispatcher,
-      )
-    }
+    refreshJobLogEvery(events = jobLogEvents, duration = 1.minutes)
 
-    launch {
-      autorefreshJobStatuses(events = jobStatusEvents, duration = 1.minutes)
-    }
+    refreshJobStatusesEvery(events = jobStatusEvents, duration = 1.minutes)
   }
 
   Window(
@@ -198,11 +195,11 @@ fun main() = application {
         modifier = Modifier.fillMaxSize(),
       ) {
         MainView(
-          jobResultsStateFlow = jobResultBloc.state,
+          jobResultsStateFlow = jobResultStates.stream,
           jobResultsEvents = jobResultEvents,
           jobStatusStateFlow = jobStatusStates.stream,
           jobStatusEvents = jobStatusEvents,
-          jobLogStateFlow = jobLogBloc.state,
+          jobLogStateFlow = jobLogStates.stream,
           jobLogEvents = jobLogEvents,
         )
       }

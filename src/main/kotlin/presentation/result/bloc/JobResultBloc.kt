@@ -5,12 +5,11 @@ import domain.JobResultRepo
 import domain.ResultFilter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
@@ -21,37 +20,24 @@ import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
 @ExperimentalCoroutinesApi
-class JobResultBloc(
-  private val repo: JobResultRepo,
-  private val events: JobResultEvents,
-  private val logger: Logger,
+fun CoroutineScope.jobResultBloc(
+  repo: JobResultRepo,
+  events: JobResultEvents,
+  states: JobResultStates,
+  logger: Logger,
   dispatcher: CoroutineDispatcher,
 ) {
-  private var _state = MutableStateFlow<JobResultState>(JobResultState.Initial)
+  val singleThreadedDispatcher = dispatcher.limitedParallelism(1)
 
-  val state = _state.asStateFlow()
+  var latestRefresh: LocalDateTime? = null
 
-  private val singleThreadedDispatcher = dispatcher.limitedParallelism(1)
+  var jobNameFilter = ""
 
-  private var latestRefresh: LocalDateTime? = null
+  var resultFilter = ResultFilter.All
 
-  private var jobNameFilter = ""
+  var selectedJob = "All"
 
-  private var resultFilter = ResultFilter.All
-
-  private var selectedRow: Int? = null
-
-  private var selectedJob: String = "All"
-
-  suspend fun autorefreshEvery(duration: Duration) = coroutineScope {
-    while (isActive) {
-      events.refresh()
-
-      delay(duration)
-    }
-  }
-
-  suspend fun start() {
+  launch {
     events.stream.collect { event ->
       try {
         withContext(singleThreadedDispatcher) {
@@ -59,37 +45,11 @@ class JobResultBloc(
 
           withTimeout(60.seconds) {
             when (event) {
-              is JobResultEvent.RowSelected -> {
-                when (val st = state.value) {
-                  is JobResultState.Error -> throw Exception("Row was selected, but state was not Loaded.")
-                  JobResultState.Initial -> throw Exception("Row was selected, but state was not Loaded.")
-                  is JobResultState.Loaded -> {
-                    val newState = JobResultState.Loaded(
-                      jobNameFilter = jobNameFilter,
-                      resultFilter = resultFilter,
-                      jobResults = st.jobResults,
-                      jobNameOptions = jobNameOptions(st.jobResults),
-                      selectedRow = state.value.selectedRow,
-                      latestRefresh = st.latestRefresh,
-                      selectedJob = selectedJob,
-                    )
-
-                    _state.emit(newState)
-                  }
-                  is JobResultState.Loading -> TODO()
-                }
-              }
               is JobResultEvent.RefreshButtonClicked -> {
                 val loadingState = JobResultState.Loading(
-                  jobNameFilter = jobNameFilter,
-                  resultFilter = resultFilter,
-                  jobResults = state.value.jobResults,
-                  jobNameOptions = jobNameOptions(state.value.jobResults),
-                  selectedRow = selectedRow,
-                  selectedJob = selectedJob,
                   latestRefresh = latestRefresh,
                 )
-                _state.emit(loadingState)
+                states.emit(loadingState)
 
                 val newJobResults = if (selectedJob == "All") {
                   repo.getLatestResults(
@@ -106,22 +66,16 @@ class JobResultBloc(
                 val lr = LocalDateTime.now()
 
                 latestRefresh = lr
-                //            unfilteredJobResults.clear()
-                //            unfilteredJobResults.addAll(newJobResults)
 
                 val loadedState = JobResultState.Loaded(
-                  jobNameFilter = jobNameFilter,
-                  resultFilter = resultFilter,
                   jobResults = newJobResults,
                   jobNameOptions = jobNameOptions(newJobResults),
-                  selectedJob = selectedJob,
-                  selectedRow = selectedRow,
                   latestRefresh = lr,
                 )
 
                 println("Emitting new job results after refresh.")
 
-                _state.emit(loadedState)
+                states.emit(loadedState)
               }
               is JobResultEvent.FilterChanged -> {
                 println(
@@ -146,16 +100,12 @@ class JobResultBloc(
                 }
 
                 val newState = JobResultState.Loaded(
-                  jobNameFilter = jobNameFilter,
-                  resultFilter = resultFilter,
                   jobResults = newJobResults,
                   jobNameOptions = jobNameOptions(newJobResults),
-                  selectedJob = selectedJob,
-                  selectedRow = selectedRow,
                   latestRefresh = latestRefresh ?: error("FilterChanged event triggered, but state was not loaded."),
                 )
 
-                _state.emit(newState)
+                states.emit(newState)
               }
             }
           }
@@ -173,3 +123,14 @@ class JobResultBloc(
 
 fun jobNameOptions(jobResults: List<JobResult>) =
   listOf("All") + jobResults.map { it.jobName }.sorted()
+
+fun CoroutineScope.refreshJobResultsEvery(
+  events: JobResultEvents,
+  duration: Duration,
+) = launch {
+  while (isActive) {
+    events.refresh()
+
+    delay(duration)
+  }
+}

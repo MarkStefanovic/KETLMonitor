@@ -4,13 +4,12 @@ import domain.JobLogRepo
 import domain.LogLevel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.LocalDateTime
@@ -20,33 +19,23 @@ import kotlin.time.Duration.Companion.seconds
 
 @FlowPreview
 @ExperimentalCoroutinesApi
-class JobLogBloc(
-  private val repo: JobLogRepo,
-  private val events: JobLogEvents,
-  private val maxEntriesToDisplay: Int,
-  private val logger: Logger,
+fun CoroutineScope.jobLogBloc(
+  repo: JobLogRepo,
+  events: JobLogEvents,
+  states: JobLogStates,
+  maxEntriesToDisplay: Int,
+  logger: Logger,
   dispatcher: CoroutineDispatcher,
 ) {
-  private val _state = MutableStateFlow<JobLogState>(JobLogState.Initial)
+  val singleThreadedDispatcher = dispatcher.limitedParallelism(1)
 
-  val state = _state.asStateFlow()
+  var latestRefresh: LocalDateTime? = null
 
-  private val singleThreadedDispatcher = dispatcher.limitedParallelism(1)
+  var filter = ""
 
-  private var latestRefresh: LocalDateTime? = null
+  var logLevel = LogLevel.Any
 
-  private var filter = ""
-
-  private var logLevel = LogLevel.Any
-
-  suspend fun autorefreshEvery(duration: Duration) = coroutineScope {
-    while (isActive) {
-      events.refresh()
-      delay(duration)
-    }
-  }
-
-  suspend fun start() {
+  launch {
     events.stream.collect { event: JobLogEvent ->
       println("${javaClass.simpleName} received event: $event")
 
@@ -59,7 +48,7 @@ class JobLogBloc(
 
                 logLevel = event.logLevel
 
-                _state.emit(
+                states.emit(
                   JobLogState.Loading(
                     filter = filter,
                     logLevel = logLevel,
@@ -68,7 +57,7 @@ class JobLogBloc(
                 )
               }
               JobLogEvent.Refresh -> {
-                _state.emit(
+                states.emit(
                   JobLogState.Loading(
                     filter = filter,
                     logLevel = logLevel,
@@ -86,7 +75,7 @@ class JobLogBloc(
 
             latestRefresh = LocalDateTime.now()
 
-            _state.emit(
+            states.emit(
               JobLogState.Loaded(
                 filter = filter,
                 logLevel = logLevel,
@@ -96,13 +85,26 @@ class JobLogBloc(
             )
           }
         }
-      } catch (ce: CancellationException) {
-        println("${javaClass.simpleName} closed.")
-        throw ce
       } catch (e: Exception) {
+        if (e is CancellationException) {
+          println("Cancelling jobLogBloc...")
+          throw e
+        }
+
         logger.severe(e.stackTraceToString())
-        delay(10.seconds)
+
+        throw e
       }
     }
+  }
+}
+
+fun CoroutineScope.refreshJobLogEvery(
+  events: JobLogEvents,
+  duration: Duration,
+) = launch {
+  while (isActive) {
+    events.refresh()
+    delay(duration)
   }
 }

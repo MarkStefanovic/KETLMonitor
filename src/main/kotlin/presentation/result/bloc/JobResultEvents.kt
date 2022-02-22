@@ -15,11 +15,13 @@ import java.util.concurrent.Executors
 interface JobResultEvents {
   val stream: SharedFlow<JobResultEvent>
 
-  fun rowSelected(rowNumber: Int)
-
   fun refresh()
 
-  fun setFilter(selectedJob: String, jobNamePrefix: String, result: ResultFilter)
+  fun setFilter(
+    selectedJob: String,
+    jobNamePrefix: String,
+    result: ResultFilter,
+  )
 }
 
 class DefaultJobResultEvents : JobResultEvents {
@@ -34,14 +36,6 @@ class DefaultJobResultEvents : JobResultEvents {
 
   private val scope: CoroutineScope = MainScope()
 
-  override fun rowSelected(rowNumber: Int) {
-    scope.launch {
-      withContext(dispatcher) {
-        _stream.emit(JobResultEvent.RowSelected(rowNumber))
-      }
-    }
-  }
-
   override fun refresh() {
     scope.launch {
       withContext(dispatcher) {
@@ -50,7 +44,11 @@ class DefaultJobResultEvents : JobResultEvents {
     }
   }
 
-  override fun setFilter(selectedJob: String, jobNamePrefix: String, result: ResultFilter) {
+  override fun setFilter(
+    selectedJob: String,
+    jobNamePrefix: String,
+    result: ResultFilter,
+  ) {
     scope.launch {
       withContext(dispatcher) {
         _stream.emit(

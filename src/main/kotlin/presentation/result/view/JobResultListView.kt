@@ -70,11 +70,11 @@ fun JobResultListView(
     }
   }
 
-  var jobNameFilter: String by remember { mutableStateOf(state.jobNameFilter) }
+  var jobNameFilter: String by remember { mutableStateOf("") }
 
-  var resultFilter: ResultFilter by remember { mutableStateOf(state.resultFilter) }
+  var resultFilter: ResultFilter by remember { mutableStateOf(ResultFilter.All) }
 
-  var selectedJob: String by remember { mutableStateOf(state.selectedJob) }
+  var selectedJob: String by remember { mutableStateOf("") }
 
 //  LaunchedEffect("jobNameFilter") {
 //    snapshotFlow {
@@ -95,19 +95,6 @@ fun JobResultListView(
     modifier = Modifier.padding(6.dp)
   ) {
     Row {
-//      AnimatedVisibility(visible = showScrollToTopButton) {
-//        IconButton(onClick = {
-//          coroutineScope.launch {
-//            listState.animateScrollToItem(index = 0)
-//          }
-//        }) {
-//          Icon(
-//            imageVector = Icons.Filled.KeyboardArrowUp,
-//            contentDescription = "Scroll to Top",
-//          )
-//        }
-//      }
-
       Button(
         onClick = {
           events.refresh()
@@ -130,64 +117,74 @@ fun JobResultListView(
 
     Spacer(Modifier.height(6.dp))
 
-    when (val st = state) {
-      JobResultState.Initial -> {
-        println("${javaClass.simpleName} initialized")
-      }
-      is JobResultState.Loaded, is JobResultState.Loading -> {
-        Row {
-          TextField(
-            value = st.jobNameFilter,
-            onValueChange = {
-              jobNameFilter = it
+    Row {
+      TextField(
+        value = jobNameFilter,
+        onValueChange = {
+          jobNameFilter = it
 
-              events.setFilter(
-                jobNamePrefix = it,
-                selectedJob = selectedJob,
-                result = resultFilter
-              )
-            },
+          events.setFilter(
+            jobNamePrefix = it,
+            selectedJob = selectedJob,
+            result = resultFilter
+          )
+        },
 //            onValueChangedFinished = {},
-            label = { Text("Job", modifier = Modifier.fillMaxHeight()) },
-            maxLines = 1,
-            modifier = Modifier.weight(1f).height(65.dp),
-          )
+        label = { Text("Job", modifier = Modifier.fillMaxHeight()) },
+        maxLines = 1,
+        modifier = Modifier.weight(1f).height(65.dp),
+      )
 
-          Spacer(Modifier.width(10.dp))
+      Spacer(Modifier.width(10.dp))
 
-          JobNameDropdown(
-            label = "Job Name",
-            options = st.jobNameOptions,
-            value = selectedJob,
-            onValueChange = {
-              selectedJob = it
+      val jobNameOptions: List<String> = when (val st = state) {
+        is JobResultState.Error -> emptyList()
+        JobResultState.Initial -> emptyList()
+        is JobResultState.Loaded -> st.jobNameOptions
+        is JobResultState.Loading -> emptyList()
+      }
 
-              events.setFilter(
-                selectedJob = selectedJob,
-                jobNamePrefix = jobNameFilter,
-                result = resultFilter,
-              )
-            }
-          )
+      JobNameDropdown(
+        label = "Job Name",
+        options = jobNameOptions,
+        value = selectedJob,
+        onValueChange = {
+          selectedJob = it
 
-          Spacer(Modifier.width(10.dp))
-
-          EnumDropdown(
-            label = "Status",
-            value = resultFilter,
-            onValueChange = {
-              resultFilter = it
-
-              events.setFilter(
-                selectedJob = selectedJob,
-                jobNamePrefix = jobNameFilter,
-                result = it,
-              )
-            },
-            modifier = Modifier.width(160.dp),
+          events.setFilter(
+            selectedJob = selectedJob,
+            jobNamePrefix = jobNameFilter,
+            result = resultFilter,
           )
         }
+      )
 
+      Spacer(Modifier.width(10.dp))
+
+      EnumDropdown(
+        label = "Status",
+        value = resultFilter,
+        onValueChange = {
+          resultFilter = it
+
+          events.setFilter(
+            selectedJob = selectedJob,
+            jobNamePrefix = jobNameFilter,
+            result = it,
+          )
+        },
+        modifier = Modifier.width(160.dp),
+      )
+    }
+
+    when (val st = state) {
+      JobResultState.Initial -> {
+//        println("${javaClass.simpleName} initialized.")
+      }
+      is JobResultState.Loading -> {
+//        println("${javaClass.simpleName} loading...")
+      }
+      is JobResultState.Loaded -> {
         LazyColumn(
           contentPadding = PaddingValues(horizontal = 2.dp),
           state = listState,

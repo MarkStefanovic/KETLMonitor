@@ -10,6 +10,4 @@ sealed class JobResultEvent {
   ) : JobResultEvent()
 
   object RefreshButtonClicked : JobResultEvent()
-
-  data class RowSelected(val rowNumber: Int) : JobResultEvent()
 }
