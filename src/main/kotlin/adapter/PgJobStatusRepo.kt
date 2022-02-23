@@ -37,7 +37,7 @@ data class PgJobStatusRepo(
         """
         |PgJobResultsRepo.getLatestResult:
         |  ${sql.split("\n").joinToString("\n  ")}
-      """.trimMargin()
+        """.trimMargin()
       )
     }
 

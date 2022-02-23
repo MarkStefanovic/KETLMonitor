@@ -3,14 +3,14 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     kotlin("jvm") version "1.6.10"
-    id("org.jmailen.kotlinter") version "3.8.0"
-    id("org.jetbrains.compose") version "1.2.0-alpha01-dev625"
+    id("org.jmailen.kotlinter") version "3.9.0"
+    id("org.jetbrains.compose") version "1.2.0-alpha01-dev629"
     id("org.jetbrains.kotlin.plugin.serialization") version "1.6.20-M1"
     id("com.github.ben-manes.versions") version "0.42.0"
 }
 
 group = "me.mes"
-version = "1.0"
+version = "1.02"
 
 repositories {
     google()
@@ -57,7 +57,7 @@ compose.desktop {
     application {
         mainClass = "MainKt"
         nativeDistributions {
-            modules("java.base", "java.sql")
+            includeAllModules = true
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "KETLMonitor"
             packageVersion = "1.0.0"

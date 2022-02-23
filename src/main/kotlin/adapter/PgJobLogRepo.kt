@@ -75,7 +75,7 @@ class PgJobLogRepo(
         """
         |PgJobLogRepo.getLatestEntriesForJobLike(jobNamePrefix = $jobNamePrefix, logLevel = $logLevel, n = $n)
         |  ${sql.split("\n").joinToString("\n  ")}
-      """.trimMargin()
+        """.trimMargin()
       )
     }
 

@@ -93,8 +93,6 @@ fun CoroutineScope.jobLogBloc(
         }
 
         logger.severe(e.stackTraceToString())
-
-        throw e
       }
     }
   }

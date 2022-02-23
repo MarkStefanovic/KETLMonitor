@@ -32,14 +32,14 @@ data class PgJobResultRepo(
       |    STARTS_WITH(j.job_name, ?)
       |  ORDER BY 
       |    j.end_time DESC
-    """.trimMargin()
+      """.trimMargin()
 
       if (showSQL) {
         println(
           """
         |${javaClass.simpleName}.getLatestResult(jobNameStartsWith = $jobNameStartsWith, resultFilter = $resultFilter):
         |  ${sql.split("\n").joinToString("\n    ")}
-        """.trimMargin()
+          """.trimMargin()
         )
       }
 
@@ -72,14 +72,14 @@ data class PgJobResultRepo(
       |    AND j.result = ?
       |  ORDER BY 
       |    j.end_time DESC
-    """.trimMargin()
+      """.trimMargin()
 
       if (showSQL) {
         println(
           """
         |${javaClass.simpleName}.getLatestResult(jobNameStartsWith = $jobNameStartsWith, resultFilter = $resultFilter):
         |  ${sql.split("\n").joinToString("\n    ")}
-        """.trimMargin()
+          """.trimMargin()
         )
       }
 
