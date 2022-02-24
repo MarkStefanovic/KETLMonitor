@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -37,11 +38,11 @@ fun CoroutineScope.jobStatusBloc(
 
   launch {
     events.stream.collect { event: JobStatusEvent ->
-      println("jobStatusBloc received event: $event")
+      logger.info("jobStatusBloc received event: $event")
 
       try {
         withContext(singleThreadedContext) {
-          withTimeout(60.seconds) {
+          withTimeout(20.seconds) {
             when (event) {
               is JobStatusEvent.Error -> states.emit(
                 JobStatusState.Error(
@@ -98,8 +99,12 @@ fun CoroutineScope.jobStatusBloc(
         }
       } catch (e: Exception) {
         if (e is CancellationException) {
-          println("Cancelling jobStatusBloc...")
-          throw e
+          if (e is TimeoutCancellationException) {
+            logger.info("jobStatusBloc timed out.")
+          } else {
+            logger.info("Cancelling jobStatusBloc...")
+            throw e
+          }
         }
 
         logger.severe(e.stackTraceToString())

@@ -2,15 +2,12 @@ package presentation.result.bloc
 
 import domain.ResultFilter
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.concurrent.Executors
+import java.util.logging.Logger
 
 interface JobResultEvents {
   val stream: SharedFlow<JobResultEvent>
@@ -24,7 +21,10 @@ interface JobResultEvents {
   )
 }
 
-class DefaultJobResultEvents : JobResultEvents {
+class DefaultJobResultEvents(
+  private val scope: CoroutineScope,
+  private val logger: Logger,
+) : JobResultEvents {
   private val _stream = MutableSharedFlow<JobResultEvent>(
     extraBufferCapacity = 3,
     onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -32,15 +32,11 @@ class DefaultJobResultEvents : JobResultEvents {
 
   override val stream = _stream.asSharedFlow()
 
-  private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-
-  private val scope: CoroutineScope = MainScope()
-
   override fun refresh() {
     scope.launch {
-      withContext(dispatcher) {
-        _stream.emit(JobResultEvent.RefreshButtonClicked)
-      }
+      _stream.emit(
+        JobResultEvent.RefreshButtonClicked
+      )
     }
   }
 
@@ -50,15 +46,13 @@ class DefaultJobResultEvents : JobResultEvents {
     result: ResultFilter,
   ) {
     scope.launch {
-      withContext(dispatcher) {
-        _stream.emit(
-          JobResultEvent.FilterChanged(
-            selectedJob = selectedJob,
-            jobNamePrefix = jobNamePrefix,
-            resultFilter = result,
-          )
+      _stream.emit(
+        JobResultEvent.FilterChanged(
+          selectedJob = selectedJob,
+          jobNamePrefix = jobNamePrefix,
+          resultFilter = result,
         )
-      }
+      )
     }
   }
 }

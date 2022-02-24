@@ -7,6 +7,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -32,19 +33,17 @@ fun CoroutineScope.jobResultBloc(
 
   var latestRefresh: LocalDateTime? = null
 
-  var jobNameFilter = ""
-
-  var resultFilter = ResultFilter.All
-
-  var selectedJob = "All"
+  var selectedJob: String = "All"
+  var jobNamePrefix: String = ""
+  var resultFilter: ResultFilter = ResultFilter.All
 
   launch {
     events.stream.collect { event ->
       try {
         withContext(singleThreadedContext) {
-          println("jobResultBloc received event: $event")
+          logger.info("jobResultBloc received event: $event")
 
-          withTimeout(60.seconds) {
+          withTimeout(20.seconds) {
             when (event) {
               is JobResultEvent.RefreshButtonClicked -> {
                 val loadingState = JobResultState.Loading(
@@ -54,7 +53,7 @@ fun CoroutineScope.jobResultBloc(
 
                 val newJobResults = if (selectedJob == "All") {
                   repo.getLatestResults(
-                    jobNameStartsWith = jobNameFilter,
+                    jobNameStartsWith = jobNamePrefix,
                     resultFilter = resultFilter,
                   )
                 } else {
@@ -74,23 +73,23 @@ fun CoroutineScope.jobResultBloc(
                   latestRefresh = lr,
                 )
 
-                println("Emitting new job results after refresh.")
+                logger.info("Emitting new job results after refresh.")
 
                 states.emit(loadedState)
               }
               is JobResultEvent.FilterChanged -> {
-                println(
+                logger.info(
                   "jobNameFilter changed to '${event.jobNamePrefix}', selectedJob changed to '${event.selectedJob}', " +
-                    "and resultFilter changed to $resultFilter"
+                    "and resultFilter changed to ${event.resultFilter}"
                 )
 
-                jobNameFilter = event.jobNamePrefix
+                selectedJob = event.selectedJob.ifBlank { "All" }
+                jobNamePrefix = event.jobNamePrefix
                 resultFilter = event.resultFilter
-                selectedJob = event.selectedJob
 
                 val newJobResults = if (selectedJob == "All") {
                   repo.getLatestResults(
-                    jobNameStartsWith = jobNameFilter,
+                    jobNameStartsWith = jobNamePrefix,
                     resultFilter = resultFilter,
                   )
                 } else {
@@ -113,8 +112,12 @@ fun CoroutineScope.jobResultBloc(
         }
       } catch (e: Exception) {
         if (e is CancellationException) {
-          println("Cancelling jobResultBloc...")
-          throw e
+          if (e is TimeoutCancellationException) {
+            logger.info("jobResultBloc timed out.")
+          } else {
+            logger.info("Cancelling jobResultBloc...")
+            throw e
+          }
         }
 
         logger.severe(e.stackTraceToString())

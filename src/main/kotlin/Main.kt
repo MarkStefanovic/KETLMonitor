@@ -47,6 +47,7 @@ import presentation.status.bloc.JobStatusStates
 import presentation.status.bloc.jobStatusBloc
 import presentation.status.bloc.refreshJobStatusesEvery
 import java.io.File
+import java.util.logging.ConsoleHandler
 import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -79,11 +80,17 @@ fun getConfig(): Config {
 fun main() = application {
   val logger = Logger.getLogger("KETL Monitor")
 
-  val handler = FileHandler("./error.log", 1048576L, 1, true).apply {
+  val fileHandler = FileHandler("./error.log", 1048576L, 1, true).apply {
     level = Level.SEVERE
   }
 
-  logger.addHandler(handler)
+  val consoleHandler = ConsoleHandler().apply {
+    level = Level.ALL
+  }
+
+  logger.addHandler(fileHandler)
+
+  logger.addHandler(consoleHandler)
 
   logger.info("Starting KETL Monitor...")
 
@@ -129,15 +136,24 @@ fun main() = application {
     showSQL = false,
   )
 
-  val jobResultEvents = DefaultJobResultEvents()
+  val jobResultEvents = DefaultJobResultEvents(
+    scope = scope,
+    logger = logger,
+  )
 
   val jobResultStates = DefaultJobResultStates()
 
-  val jobLogEvents = DefaultJobLogEvents()
+  val jobLogEvents = DefaultJobLogEvents(
+    scope = scope,
+    logger = logger,
+  )
 
   val jobLogStates = DefaultJobLogStates()
 
-  val jobStatusEvents: JobStatusEvents = DefaultJobStatusEvents()
+  val jobStatusEvents: JobStatusEvents = DefaultJobStatusEvents(
+    scope = scope,
+    logger = logger,
+  )
 
   val jobStatusStates: JobStatusStates = DefaultJobStatusStates()
 

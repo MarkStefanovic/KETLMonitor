@@ -3,12 +3,12 @@ package presentation.log.bloc
 import domain.LogLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import java.util.logging.Logger
 
 interface JobLogEvents {
   val stream: SharedFlow<JobLogEvent>
@@ -19,7 +19,10 @@ interface JobLogEvents {
 }
 
 @FlowPreview
-class DefaultJobLogEvents : JobLogEvents {
+class DefaultJobLogEvents(
+  private val scope: CoroutineScope,
+  private val logger: Logger,
+) : JobLogEvents {
   private val _stream = MutableSharedFlow<JobLogEvent>(
     extraBufferCapacity = 5,
     onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -27,17 +30,17 @@ class DefaultJobLogEvents : JobLogEvents {
 
   override val stream: SharedFlow<JobLogEvent> = _stream.asSharedFlow()
 
-  private val scope: CoroutineScope = MainScope()
-
   override fun refresh() {
-    println("${javaClass.simpleName}.refresh()")
+    logger.info("${javaClass.simpleName}.refresh()")
+
     scope.launch {
       _stream.emit(JobLogEvent.Refresh)
     }
   }
 
   override fun setFilter(jobNamePrefix: String, logLevel: LogLevel) {
-    println("${javaClass.simpleName}.setJobNameFilter(jobNamePrefix = $jobNamePrefix, logLevel = $logLevel)")
+    logger.info("${javaClass.simpleName}.setJobNameFilter(jobNamePrefix = $jobNamePrefix, logLevel = $logLevel)")
+
     scope.launch {
       _stream.emit(JobLogEvent.FilterChanged(prefix = jobNamePrefix, logLevel = logLevel))
     }

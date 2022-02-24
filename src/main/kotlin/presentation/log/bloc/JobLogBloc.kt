@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -38,11 +39,11 @@ fun CoroutineScope.jobLogBloc(
 
   launch {
     events.stream.collect { event: JobLogEvent ->
-      println("jobResultBloc received event: $event")
+      logger.info("jobResultBloc received event: $event")
 
       try {
         withContext(singleThreadedContext) {
-          withTimeout(60.seconds) {
+          withTimeout(20.seconds) {
             when (event) {
               is JobLogEvent.FilterChanged -> {
                 filter = event.prefix
@@ -88,8 +89,12 @@ fun CoroutineScope.jobLogBloc(
         }
       } catch (e: Exception) {
         if (e is CancellationException) {
-          println("Cancelling jobLogBloc...")
-          throw e
+          if (e is TimeoutCancellationException) {
+            logger.info("jobLogBloc timed out.")
+          } else {
+            logger.info("Cancelling jobLogBloc...")
+            throw e
+          }
         }
 
         logger.severe(e.stackTraceToString())

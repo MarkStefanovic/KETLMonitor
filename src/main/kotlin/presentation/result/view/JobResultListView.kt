@@ -96,9 +96,7 @@ fun JobResultListView(
   ) {
     Row {
       Button(
-        onClick = {
-          events.refresh()
-        },
+        onClick = events::refresh,
         colors = ButtonDefaults.buttonColors(backgroundColor = Color.DarkGray),
         border = BorderStroke(width = 1.dp, color = Color.White),
       ) {

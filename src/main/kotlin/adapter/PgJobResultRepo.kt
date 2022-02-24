@@ -68,8 +68,8 @@ data class PgJobResultRepo(
       |  , j.skip_reason
       |  FROM $schema.job_result_snapshot AS j
       |  WHERE 
-      |    STARTS_WITH(j.job_name, ?)
-      |    AND j.result = ?
+      |    j.result = ?
+      |    AND STARTS_WITH(j.job_name, ?)
       |  ORDER BY 
       |    j.end_time DESC
       """.trimMargin()

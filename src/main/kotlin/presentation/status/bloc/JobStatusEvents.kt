@@ -1,15 +1,12 @@
 package presentation.status.bloc
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.concurrent.Executors
+import java.util.logging.Logger
 
 interface JobStatusEvents {
   val stream: SharedFlow<JobStatusEvent>
@@ -19,17 +16,16 @@ interface JobStatusEvents {
   fun setFilter(jobName: String)
 }
 
-class DefaultJobStatusEvents : JobStatusEvents {
+class DefaultJobStatusEvents(
+  private val scope: CoroutineScope,
+  private val logger: Logger,
+) : JobStatusEvents {
   private val _stream = MutableSharedFlow<JobStatusEvent>(
     extraBufferCapacity = 3,
     onBufferOverflow = BufferOverflow.DROP_OLDEST,
   )
 
   override val stream = _stream.asSharedFlow()
-
-  private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-
-  private val scope: CoroutineScope = MainScope()
 
   override fun refresh() {
     send(JobStatusEvent.RefreshButtonClicked)
@@ -41,9 +37,7 @@ class DefaultJobStatusEvents : JobStatusEvents {
 
   private fun send(event: JobStatusEvent) {
     scope.launch {
-      withContext(dispatcher) {
-        _stream.emit(event)
-      }
+      _stream.emit(event)
     }
   }
 }
