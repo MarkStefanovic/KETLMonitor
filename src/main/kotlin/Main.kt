@@ -113,7 +113,7 @@ fun main() = application {
     jdbcUrl = config.pgURL
     username = config.pgUsername
     password = config.pgPassword
-    maximumPoolSize = 1
+    maximumPoolSize = 3
   }
 
   val pgDataSource = HikariDataSource(hikariConfig)
