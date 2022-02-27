@@ -11,13 +11,11 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.newSingleThreadContext
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDateTime
 import java.util.logging.Logger
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 @FlowPreview
 @DelicateCoroutinesApi
@@ -29,7 +27,7 @@ fun CoroutineScope.jobLogBloc(
   maxEntriesToDisplay: Int,
   logger: Logger,
 ) {
-  val singleThreadedContext = newSingleThreadContext("jobResultBloc")
+  val mutex = Mutex()
 
   var latestRefresh: LocalDateTime? = null
 
@@ -42,51 +40,50 @@ fun CoroutineScope.jobLogBloc(
       logger.info("jobResultBloc received event: $event")
 
       try {
-        withContext(singleThreadedContext) {
-          withTimeout(20.seconds) {
-            when (event) {
-              is JobLogEvent.FilterChanged -> {
-                filter = event.prefix
-
-                logLevel = event.logLevel
-
-                states.emit(
-                  JobLogState.Loading(
-                    filter = filter,
-                    logLevel = logLevel,
-                    latestRefresh = latestRefresh,
-                  )
-                )
-              }
-              JobLogEvent.Refresh -> {
-                states.emit(
-                  JobLogState.Loading(
-                    filter = filter,
-                    logLevel = logLevel,
-                    latestRefresh = latestRefresh,
-                  )
-                )
-              }
+        when (event) {
+          is JobLogEvent.FilterChanged -> {
+            mutex.withLock {
+              filter = event.prefix
+              logLevel = event.logLevel
             }
 
-            val logEntries = repo.where(
-              jobNamePrefix = filter,
-              logLevel = logLevel,
-              n = maxEntriesToDisplay,
-            )
-
-            latestRefresh = LocalDateTime.now()
-
             states.emit(
-              JobLogState.Loaded(
+              JobLogState.Loading(
                 filter = filter,
                 logLevel = logLevel,
-                latestRefresh = latestRefresh ?: LocalDateTime.now(),
-                logEntries = logEntries,
+                latestRefresh = latestRefresh,
+              )
+            )
+          }
+          JobLogEvent.Refresh -> {
+            states.emit(
+              JobLogState.Loading(
+                filter = filter,
+                logLevel = logLevel,
+                latestRefresh = latestRefresh,
               )
             )
           }
         }
+
+        val logEntries = repo.where(
+          jobNamePrefix = filter,
+          logLevel = logLevel,
+          n = maxEntriesToDisplay,
+        )
+
+        mutex.withLock {
+          latestRefresh = LocalDateTime.now()
+        }
+
+        states.emit(
+          JobLogState.Loaded(
+            filter = filter,
+            logLevel = logLevel,
+            latestRefresh = latestRefresh ?: LocalDateTime.now(),
+            logEntries = logEntries,
+          )
+        )
       } catch (e: Exception) {
         if (e is CancellationException) {
           if (e is TimeoutCancellationException) {

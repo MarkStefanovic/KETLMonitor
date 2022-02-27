@@ -10,13 +10,11 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.newSingleThreadContext
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDateTime
 import java.util.logging.Logger
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -28,7 +26,7 @@ fun CoroutineScope.jobStatusBloc(
   repo: JobStatusRepo,
   logger: Logger,
 ) {
-  val singleThreadedContext = newSingleThreadContext("jobStatusBloc")
+  val mutex = Mutex()
 
   var latestRefresh: LocalDateTime? = null
 
@@ -41,60 +39,59 @@ fun CoroutineScope.jobStatusBloc(
       logger.info("jobStatusBloc received event: $event")
 
       try {
-        withContext(singleThreadedContext) {
-          withTimeout(20.seconds) {
-            when (event) {
-              is JobStatusEvent.Error -> states.emit(
-                JobStatusState.Error(
-                  latestRefresh = latestRefresh,
-                  errorMessage = event.errorMessage,
-                )
-              )
-              is JobStatusEvent.FilterChanged -> {
-                filter = event.jobName
-
-                val newState = JobStatusState.Loaded(
-                  filter = filter,
-                  jobStatuses = filterJobStatuses(
-                    jobStatuses = unfilteredJobStatuses,
-                    jobNameFilter = filter,
-                  ),
-                  latestRefresh = latestRefresh ?: error("Latest refresh is null, but the state is Loaded."),
-                )
-
-                states.emit(newState)
-              }
-              JobStatusEvent.RefreshButtonClicked -> {
-                states.emit(
-                  JobStatusState.Loading(
-                    jobStatuses = filterJobStatuses(
-                      jobStatuses = unfilteredJobStatuses,
-                      jobNameFilter = filter,
-                    ),
-                    filter = filter,
-                    latestRefresh = latestRefresh,
-                  )
-                )
-
-                val jobStatuses = repo.getLatestStatuses()
-
-                latestRefresh = LocalDateTime.now()
-
-                unfilteredJobStatuses.clear()
-                unfilteredJobStatuses.addAll(jobStatuses)
-
-                val newState = JobStatusState.Loaded(
-                  filter = filter,
-                  jobStatuses = filterJobStatuses(
-                    jobStatuses = unfilteredJobStatuses,
-                    jobNameFilter = filter,
-                  ),
-                  latestRefresh = latestRefresh ?: error("Latest refresh is null, but the state is Loaded."),
-                )
-
-                states.emit(newState)
-              }
+        when (event) {
+          is JobStatusEvent.Error -> states.emit(
+            JobStatusState.Error(
+              latestRefresh = latestRefresh,
+              errorMessage = event.errorMessage,
+            )
+          )
+          is JobStatusEvent.FilterChanged -> {
+            mutex.withLock {
+              filter = event.jobName
             }
+
+            val newState = JobStatusState.Loaded(
+              filter = filter,
+              jobStatuses = filterJobStatuses(
+                jobStatuses = unfilteredJobStatuses,
+                jobNameFilter = filter,
+              ),
+              latestRefresh = latestRefresh ?: error("Latest refresh is null, but the state is Loaded."),
+            )
+
+            states.emit(newState)
+          }
+          JobStatusEvent.RefreshButtonClicked -> {
+            states.emit(
+              JobStatusState.Loading(
+                jobStatuses = filterJobStatuses(
+                  jobStatuses = unfilteredJobStatuses,
+                  jobNameFilter = filter,
+                ),
+                filter = filter,
+                latestRefresh = latestRefresh,
+              )
+            )
+
+            val jobStatuses = repo.getLatestStatuses()
+
+            mutex.withLock {
+              latestRefresh = LocalDateTime.now()
+
+              unfilteredJobStatuses.clear()
+              unfilteredJobStatuses.addAll(jobStatuses)
+            }
+            val newState = JobStatusState.Loaded(
+              filter = filter,
+              jobStatuses = filterJobStatuses(
+                jobStatuses = unfilteredJobStatuses,
+                jobNameFilter = filter,
+              ),
+              latestRefresh = latestRefresh ?: error("Latest refresh is null, but the state is Loaded."),
+            )
+
+            states.emit(newState)
           }
         }
       } catch (e: Exception) {
