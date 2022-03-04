@@ -69,6 +69,10 @@ fun getConfig(): Config {
   }.decodeFromString(configJsonText)
 }
 
+@FlowPreview
+@ExperimentalTime
+@DelicateCoroutinesApi
+@ExperimentalCoroutinesApi
 object Services {
   private val scope = CoroutineScope(Job() + Dispatchers.Default)
 
@@ -107,11 +111,7 @@ object Services {
 
   val jobStatusStates: JobStatusStates = DefaultJobStatusStates()
 
-  @FlowPreview
-  @ExperimentalTime
-  @DelicateCoroutinesApi
-  @ExperimentalCoroutinesApi
-  fun start() {
+  init {
     logger.info("Starting KETL Monitor...")
 
     try {
@@ -200,8 +200,6 @@ fun main() = application {
     height = Dp.Unspecified,
     position = WindowPosition.Aligned(Alignment.TopStart),
   )
-
-  Services.start()
 
   Window(
     onCloseRequest = {
