@@ -23,7 +23,7 @@ dependencies {
 
     implementation(compose.desktop.currentOs)
 
-    implementation("androidx.compose.compiler:compiler:1.2.0-alpha03")
+    implementation("androidx.compose.compiler:compiler:1.2.0-alpha04")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
 
@@ -45,7 +45,6 @@ tasks {
         useJUnitPlatform()
     }
 }
-
 
 compose.desktop {
     application {

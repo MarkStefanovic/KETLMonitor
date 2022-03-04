@@ -3,11 +3,9 @@ package presentation.result.bloc
 import domain.JobResult
 import domain.JobResultRepo
 import domain.ResultFilter
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -109,16 +107,8 @@ fun CoroutineScope.jobResultBloc(
           }
         }
       } catch (e: Exception) {
-        if (e is CancellationException) {
-          if (e is TimeoutCancellationException) {
-            logger.info("jobResultBloc timed out.")
-          } else {
-            logger.info("Cancelling jobResultBloc...")
-            throw e
-          }
-        }
-
         logger.severe(e.stackTraceToString())
+        throw e
       }
     }
   }

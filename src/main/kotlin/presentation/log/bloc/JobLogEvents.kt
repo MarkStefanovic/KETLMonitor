@@ -2,7 +2,6 @@ package presentation.log.bloc
 
 import domain.LogLevel
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -18,7 +17,6 @@ interface JobLogEvents {
   fun setFilter(jobNamePrefix: String, logLevel: LogLevel)
 }
 
-@FlowPreview
 class DefaultJobLogEvents(
   private val scope: CoroutineScope,
   private val logger: Logger,

@@ -21,12 +21,15 @@ import androidx.compose.ui.window.rememberWindowState
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import domain.Config
+import domain.JobLogRepo
+import domain.JobResultRepo
+import domain.JobStatusRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
@@ -51,11 +54,10 @@ import java.util.logging.ConsoleHandler
 import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.Logger
+import javax.sql.DataSource
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
-
-val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
 fun getConfig(): Config {
   val configFile = File("./config.json")
@@ -71,70 +73,63 @@ fun getConfig(): Config {
   }.decodeFromString(configJsonText)
 }
 
-@FlowPreview
-@ExperimentalTime
-@DelicateCoroutinesApi
-@ExperimentalMaterialApi
-@ExperimentalCoroutinesApi
-@ExperimentalFoundationApi
-fun main() = application {
-  val logger = Logger.getLogger("KETL Monitor")
+object Services {
+  private val scope = CoroutineScope(Job() + Dispatchers.Default)
 
-  val fileHandler = FileHandler("./error.log", 1048576L, 1, true).apply {
-    level = Level.SEVERE
+  private val logger: Logger = Logger.getLogger("KETL Monitor").apply {
+    val fileHandler = FileHandler("./error.log", 1048576L, 1, true).apply {
+      level = Level.SEVERE
+    }
+
+    val consoleHandler = ConsoleHandler().apply {
+      level = Level.ALL
+    }
+
+    addHandler(fileHandler)
+
+    addHandler(consoleHandler)
   }
 
-  val consoleHandler = ConsoleHandler().apply {
-    level = Level.ALL
+  private val ds: DataSource by lazy {
+    try {
+      Class.forName("org.postgresql.Driver")
+    } catch (ex: ClassNotFoundException) {
+      println("Unable to load the class, org.postgresql.Driver. Terminating the program...")
+      exitProcess(-1)
+    }
+
+    val jsonConfig = getConfig()
+
+    val hikariConfig = HikariConfig().apply {
+      jdbcUrl = jsonConfig.pgURL
+      username = jsonConfig.pgUsername
+      password = jsonConfig.pgPassword
+      maximumPoolSize = 3
+    }
+
+    HikariDataSource(hikariConfig)
   }
 
-  logger.addHandler(fileHandler)
+  private val jobResultRepo: JobResultRepo
+    get() = PgJobResultRepo(
+      ds = ds,
+      schema = "ketl",
+      showSQL = false,
+    )
 
-  logger.addHandler(consoleHandler)
+  private val jobStatusRepo: JobStatusRepo
+    get() = PgJobStatusRepo(
+      ds = ds,
+      schema = "ketl",
+      showSQL = false,
+    )
 
-  logger.info("Starting KETL Monitor...")
-
-  try {
-    Class.forName("org.postgresql.Driver")
-  } catch (ex: ClassNotFoundException) {
-    println("Unable to load the class, org.postgresql.Driver. Terminating the program...")
-    exitProcess(-1)
-  }
-
-  val state = rememberWindowState(
-    width = 900.dp, // use Dp.Unspecified to auto-fit
-    height = Dp.Unspecified,
-    position = WindowPosition.Aligned(Alignment.TopStart),
-  )
-
-  val config = getConfig()
-
-  val hikariConfig = HikariConfig().apply {
-    jdbcUrl = config.pgURL
-    username = config.pgUsername
-    password = config.pgPassword
-    maximumPoolSize = 3
-  }
-
-  val pgDataSource = HikariDataSource(hikariConfig)
-
-  val pgJobResultRepo = PgJobResultRepo(
-    ds = pgDataSource,
-    schema = "ketl",
-    showSQL = false,
-  )
-
-  val pgJobStatusRepo = PgJobStatusRepo(
-    ds = pgDataSource,
-    schema = "ketl",
-    showSQL = false,
-  )
-
-  val pgJobLogRepo = PgJobLogRepo(
-    ds = pgDataSource,
-    schema = "ketl",
-    showSQL = false,
-  )
+  private val jobLogRepo: JobLogRepo
+    get() = PgJobLogRepo(
+      ds = ds,
+      schema = "ketl",
+      showSQL = false,
+    )
 
   val jobResultEvents = DefaultJobResultEvents(
     scope = scope,
@@ -157,39 +152,69 @@ fun main() = application {
 
   val jobStatusStates: JobStatusStates = DefaultJobStatusStates()
 
-  scope.launch {
-    jobResultBloc(
-      repo = pgJobResultRepo,
-      events = jobResultEvents,
-      states = jobResultStates,
-      logger = logger,
-    )
+  @FlowPreview
+  @ExperimentalTime
+  @DelicateCoroutinesApi
+  @ExperimentalCoroutinesApi
+  fun start() {
+    logger.info("Starting KETL Monitor...")
 
-    jobLogBloc(
-      repo = pgJobLogRepo,
-      events = jobLogEvents,
-      states = jobLogStates,
-      maxEntriesToDisplay = 1000,
-      logger = logger,
-    )
+    scope.launch {
+      jobResultBloc(
+        repo = jobResultRepo,
+        events = jobResultEvents,
+        states = jobResultStates,
+        logger = logger,
+      )
 
-    jobStatusBloc(
-      states = jobStatusStates,
-      repo = pgJobStatusRepo,
-      events = jobStatusEvents,
-      logger = logger,
-    )
+      jobLogBloc(
+        repo = jobLogRepo,
+        events = jobLogEvents,
+        states = jobLogStates,
+        maxEntriesToDisplay = 1000,
+        logger = logger,
+      )
 
-    refreshJobResultsEvery(events = jobResultEvents, duration = 1.minutes)
+      jobStatusBloc(
+        repo = jobStatusRepo,
+        states = jobStatusStates,
+        events = jobStatusEvents,
+        logger = logger,
+      )
 
-    refreshJobLogEvery(events = jobLogEvents, duration = 1.minutes)
+      refreshJobResultsEvery(events = jobResultEvents, duration = 1.minutes)
 
-    refreshJobStatusesEvery(events = jobStatusEvents, duration = 1.minutes)
+      refreshJobLogEvery(events = jobLogEvents, duration = 1.minutes)
+
+      refreshJobStatusesEvery(events = jobStatusEvents, duration = 1.minutes)
+    }
   }
+
+  fun stop() {
+    logger.info("Stopping KETL Monitor...")
+
+    scope.cancel()
+  }
+}
+
+@FlowPreview
+@ExperimentalTime
+@DelicateCoroutinesApi
+@ExperimentalMaterialApi
+@ExperimentalCoroutinesApi
+@ExperimentalFoundationApi
+fun main() = application {
+  val state = rememberWindowState(
+    width = 900.dp, // use Dp.Unspecified to auto-fit
+    height = Dp.Unspecified,
+    position = WindowPosition.Aligned(Alignment.TopStart),
+  )
+
+  Services.start()
 
   Window(
     onCloseRequest = {
-      scope.cancel()
+      Services.stop()
       exitApplication()
       exitProcess(0)
     },
@@ -204,12 +229,12 @@ fun main() = application {
         modifier = Modifier.fillMaxSize(),
       ) {
         MainView(
-          jobResultsStateFlow = jobResultStates.stream,
-          jobResultsEvents = jobResultEvents,
-          jobStatusStateFlow = jobStatusStates.stream,
-          jobStatusEvents = jobStatusEvents,
-          jobLogStateFlow = jobLogStates.stream,
-          jobLogEvents = jobLogEvents,
+          jobResultsStateFlow = Services.jobResultStates.stream,
+          jobResultsEvents = Services.jobResultEvents,
+          jobStatusStateFlow = Services.jobStatusStates.stream,
+          jobStatusEvents = Services.jobStatusEvents,
+          jobLogStateFlow = Services.jobLogStates.stream,
+          jobLogEvents = Services.jobLogEvents,
         )
       }
     }

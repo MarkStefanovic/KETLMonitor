@@ -2,12 +2,10 @@ package presentation.log.bloc
 
 import domain.JobLogRepo
 import domain.LogLevel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -85,16 +83,8 @@ fun CoroutineScope.jobLogBloc(
           )
         )
       } catch (e: Exception) {
-        if (e is CancellationException) {
-          if (e is TimeoutCancellationException) {
-            logger.info("jobLogBloc timed out.")
-          } else {
-            logger.info("Cancelling jobLogBloc...")
-            throw e
-          }
-        }
-
         logger.severe(e.stackTraceToString())
+        throw e
       }
     }
   }

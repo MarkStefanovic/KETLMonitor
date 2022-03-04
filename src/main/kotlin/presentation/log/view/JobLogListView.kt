@@ -158,9 +158,7 @@ fun JobLogListView(
     }
 
     when (val st = state) {
-      JobLogState.Initial -> {
-        println("${javaClass.simpleName} initialized")
-      }
+      JobLogState.Initial -> {}
       is JobLogState.Loaded, is JobLogState.Loading -> {
         LazyColumn(
           contentPadding = PaddingValues(horizontal = 2.dp),

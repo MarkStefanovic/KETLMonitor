@@ -107,9 +107,7 @@ fun JobStatusListView(
     }
 
     when (val st = state) {
-      JobStatusState.Initial -> {
-        println("${javaClass.simpleName} initialized")
-      }
+      JobStatusState.Initial -> {}
       is JobStatusState.Loaded, is JobStatusState.Loading -> {
         Column {
           TextField(
