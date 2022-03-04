@@ -1,5 +1,6 @@
 import org.jetbrains.compose.compose
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.cli.jvm.compiler.findMainClass
 
 plugins {
     kotlin("jvm") version "1.6.10"
@@ -10,7 +11,7 @@ plugins {
 }
 
 group = "me.mes"
-version = "1.02"
+version = ""
 
 repositories {
     google()
@@ -49,11 +50,22 @@ tasks {
 compose.desktop {
     application {
         mainClass = "MainKt"
+
         nativeDistributions {
             includeAllModules = true
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "KETLMonitor"
             packageVersion = "1.0.0"
+
+            macOS {
+                iconFile.set(project.file("assets/icons/app.icns"))
+            }
+            windows {
+                iconFile.set(project.file("assets/icons/app.ico"))
+            }
+            linux {
+                iconFile.set(project.file("assets/icons/app.png"))
+            }
         }
     }
 }

@@ -47,7 +47,6 @@ import presentation.status.bloc.JobStatusEvents
 import presentation.status.bloc.JobStatusStates
 import presentation.status.bloc.jobStatusBloc
 import presentation.status.bloc.refreshJobStatusesEvery
-import java.io.File
 import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -56,13 +55,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 fun getConfig(): Config {
-  val configFile = File("./config.json")
-
-  if (!configFile.exists()) {
-    throw Exception("${configFile.path} was not found.")
-  }
-
-  val configJsonText = configFile.readText()
+  val configJsonText = object {}.javaClass.getResource("config.json")?.readText() ?: error("config.json was not found")
 
   return Json {
     ignoreUnknownKeys = true
