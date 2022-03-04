@@ -21,9 +21,6 @@ import androidx.compose.ui.window.rememberWindowState
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import domain.Config
-import domain.JobLogRepo
-import domain.JobResultRepo
-import domain.JobStatusRepo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +51,6 @@ import java.util.logging.ConsoleHandler
 import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.Logger
-import javax.sql.DataSource
 import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
@@ -90,47 +86,6 @@ object Services {
     addHandler(consoleHandler)
   }
 
-  private val ds: DataSource by lazy {
-    try {
-      Class.forName("org.postgresql.Driver")
-    } catch (ex: ClassNotFoundException) {
-      println("Unable to load the class, org.postgresql.Driver. Terminating the program...")
-      exitProcess(-1)
-    }
-
-    val jsonConfig = getConfig()
-
-    val hikariConfig = HikariConfig().apply {
-      jdbcUrl = jsonConfig.pgURL
-      username = jsonConfig.pgUsername
-      password = jsonConfig.pgPassword
-      maximumPoolSize = 3
-    }
-
-    HikariDataSource(hikariConfig)
-  }
-
-  private val jobResultRepo: JobResultRepo
-    get() = PgJobResultRepo(
-      ds = ds,
-      schema = "ketl",
-      showSQL = false,
-    )
-
-  private val jobStatusRepo: JobStatusRepo
-    get() = PgJobStatusRepo(
-      ds = ds,
-      schema = "ketl",
-      showSQL = false,
-    )
-
-  private val jobLogRepo: JobLogRepo
-    get() = PgJobLogRepo(
-      ds = ds,
-      schema = "ketl",
-      showSQL = false,
-    )
-
   val jobResultEvents = DefaultJobResultEvents(
     scope = scope,
     logger = logger,
@@ -158,6 +113,42 @@ object Services {
   @ExperimentalCoroutinesApi
   fun start() {
     logger.info("Starting KETL Monitor...")
+
+    try {
+      Class.forName("org.postgresql.Driver")
+    } catch (ex: ClassNotFoundException) {
+      println("Unable to load the class, org.postgresql.Driver. Terminating the program...")
+      exitProcess(-1)
+    }
+
+    val jsonConfig = getConfig()
+
+    val hikariConfig = HikariConfig().apply {
+      jdbcUrl = jsonConfig.pgURL
+      username = jsonConfig.pgUsername
+      password = jsonConfig.pgPassword
+      maximumPoolSize = 3
+    }
+
+    val ds = HikariDataSource(hikariConfig)
+
+    val jobResultRepo = PgJobResultRepo(
+      ds = ds,
+      schema = "ketl",
+      showSQL = false,
+    )
+
+    val jobStatusRepo = PgJobStatusRepo(
+      ds = ds,
+      schema = "ketl",
+      showSQL = false,
+    )
+
+    val jobLogRepo = PgJobLogRepo(
+      ds = ds,
+      schema = "ketl",
+      showSQL = false,
+    )
 
     scope.launch {
       jobResultBloc(
