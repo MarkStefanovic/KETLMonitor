@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
-import androidx.compose.ui.window.application
+import androidx.compose.ui.window.awaitApplication
 import androidx.compose.ui.window.rememberWindowState
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -28,6 +28,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -47,7 +48,6 @@ import presentation.status.bloc.JobStatusStates
 import presentation.status.bloc.jobStatusBloc
 import presentation.status.bloc.refreshJobStatusesEvery
 import java.io.File
-import java.util.logging.ConsoleHandler
 import java.util.logging.FileHandler
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -76,18 +76,12 @@ fun getConfig(): Config {
 object Services {
   private val scope = CoroutineScope(Job() + Dispatchers.Default)
 
-  private val logger: Logger = Logger.getLogger("KETL Monitor").apply {
+  val logger: Logger = Logger.getLogger("KETL Monitor").apply {
     val fileHandler = FileHandler("./error.log", 1048576L, 1, true).apply {
       level = Level.SEVERE
     }
 
-    val consoleHandler = ConsoleHandler().apply {
-      level = Level.ALL
-    }
-
     addHandler(fileHandler)
-
-    addHandler(consoleHandler)
   }
 
   val jobResultEvents = DefaultJobResultEvents(
@@ -111,7 +105,7 @@ object Services {
 
   val jobStatusStates: JobStatusStates = DefaultJobStatusStates()
 
-  init {
+  fun start(): Job {
     logger.info("Starting KETL Monitor...")
 
     try {
@@ -151,6 +145,14 @@ object Services {
     )
 
     scope.launch {
+      refreshJobResultsEvery(events = jobResultEvents, duration = 1.minutes)
+
+      refreshJobLogEvery(events = jobLogEvents, duration = 1.minutes)
+
+      refreshJobStatusesEvery(events = jobStatusEvents, duration = 1.minutes)
+    }
+
+    return scope.launch {
       jobResultBloc(
         repo = jobResultRepo,
         events = jobResultEvents,
@@ -172,17 +174,11 @@ object Services {
         events = jobStatusEvents,
         logger = logger,
       )
-
-      refreshJobResultsEvery(events = jobResultEvents, duration = 1.minutes)
-
-      refreshJobLogEvery(events = jobLogEvents, duration = 1.minutes)
-
-      refreshJobStatusesEvery(events = jobStatusEvents, duration = 1.minutes)
     }
   }
 
   fun stop() {
-    logger.info("Stopping KETL Monitor...")
+    logger.info("Stopping KETL Monitor services...")
 
     scope.cancel()
   }
@@ -194,37 +190,47 @@ object Services {
 @ExperimentalMaterialApi
 @ExperimentalCoroutinesApi
 @ExperimentalFoundationApi
-fun main() = application {
-  val state = rememberWindowState(
-    width = 900.dp, // use Dp.Unspecified to auto-fit
-    height = Dp.Unspecified,
-    position = WindowPosition.Aligned(Alignment.TopStart),
-  )
+suspend fun main() = coroutineScope {
+  val services = Services.start()
 
-  Window(
-    onCloseRequest = {
+  awaitApplication {
+    services.invokeOnCompletion { e ->
+      Services.logger.severe(e?.stackTraceToString() ?: "Services have stopped.")
       Services.stop()
       exitApplication()
-      exitProcess(0)
-    },
-    state = state,
-    title = "KETL Monitor",
-    resizable = true,
-  ) {
-    MaterialTheme(colors = darkColors()) {
-      Surface(
-        color = MaterialTheme.colors.surface,
-        contentColor = contentColorFor(MaterialTheme.colors.surface),
-        modifier = Modifier.fillMaxSize(),
-      ) {
-        MainView(
-          jobResultsStateFlow = Services.jobResultStates.stream,
-          jobResultsEvents = Services.jobResultEvents,
-          jobStatusStateFlow = Services.jobStatusStates.stream,
-          jobStatusEvents = Services.jobStatusEvents,
-          jobLogStateFlow = Services.jobLogStates.stream,
-          jobLogEvents = Services.jobLogEvents,
-        )
+    }
+
+    val state = rememberWindowState(
+      width = 900.dp, // use Dp.Unspecified to auto-fit
+      height = Dp.Unspecified,
+      position = WindowPosition.Aligned(Alignment.TopStart),
+    )
+
+    Window(
+      onCloseRequest = {
+        Services.logger.info("Closing application...")
+        Services.stop()
+        exitApplication()
+      },
+      state = state,
+      title = "KETL Monitor",
+      resizable = true,
+    ) {
+      MaterialTheme(colors = darkColors()) {
+        Surface(
+          color = MaterialTheme.colors.surface,
+          contentColor = contentColorFor(MaterialTheme.colors.surface),
+          modifier = Modifier.fillMaxSize(),
+        ) {
+          MainView(
+            jobResultsStateFlow = Services.jobResultStates.stream,
+            jobResultsEvents = Services.jobResultEvents,
+            jobStatusStateFlow = Services.jobStatusStates.stream,
+            jobStatusEvents = Services.jobStatusEvents,
+            jobLogStateFlow = Services.jobLogStates.stream,
+            jobLogEvents = Services.jobLogEvents,
+          )
+        }
       }
     }
   }

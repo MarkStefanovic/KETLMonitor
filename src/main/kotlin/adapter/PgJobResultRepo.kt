@@ -5,6 +5,9 @@ package adapter
 import domain.JobResult
 import domain.JobResultRepo
 import domain.ResultFilter
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.sql.ResultSet
 import javax.sql.DataSource
 
@@ -12,11 +15,12 @@ data class PgJobResultRepo(
   val schema: String,
   val showSQL: Boolean,
   private val ds: DataSource,
+  private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JobResultRepo {
   override suspend fun getLatestResults(
     jobNameStartsWith: String?,
     resultFilter: ResultFilter,
-  ): List<JobResult> =
+  ): List<JobResult> = withContext(dispatcher) {
     if (resultFilter == ResultFilter.All) {
       // language=PostgreSQL
       val sql = """
@@ -53,7 +57,7 @@ data class PgJobResultRepo(
           while (result.next()) {
             results.add(result.toDomain())
           }
-          return results
+          results
         }
       }
     } else {
@@ -94,15 +98,16 @@ data class PgJobResultRepo(
           while (result.next()) {
             results.add(result.toDomain())
           }
-          return results
+          results
         }
       }
     }
+  }
 
   override suspend fun getResultsForJob(
     selectedJob: String,
     resultFilter: ResultFilter,
-  ): List<JobResult> =
+  ): List<JobResult> = withContext(dispatcher) {
     if (resultFilter == ResultFilter.All) {
       // language=PostgreSQL
       val sql = """
@@ -140,7 +145,7 @@ data class PgJobResultRepo(
           while (result.next()) {
             results.add(result.toDomain())
           }
-          return results
+          results
         }
       }
     } else {
@@ -182,10 +187,11 @@ data class PgJobResultRepo(
           while (result.next()) {
             results.add(result.toDomain())
           }
-          return results
+          results
         }
       }
     }
+  }
 }
 
 fun ResultSet.toDomain(): JobResult =

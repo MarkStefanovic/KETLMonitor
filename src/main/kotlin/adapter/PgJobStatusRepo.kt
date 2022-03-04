@@ -4,14 +4,18 @@ package adapter
 
 import domain.JobStatus
 import domain.JobStatusRepo
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.sql.DataSource
 
 data class PgJobStatusRepo(
   val schema: String,
   val showSQL: Boolean,
   private val ds: DataSource,
+  private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JobStatusRepo {
-  override suspend fun getLatestStatuses(): List<JobStatus> {
+  override suspend fun getLatestStatuses(): List<JobStatus> = withContext(dispatcher) {
     // language=PostgreSQL
     val sql = """
     |SELECT 
@@ -63,7 +67,7 @@ data class PgJobStatusRepo(
 
           jobStatuses.add(jobStatus)
         }
-        return jobStatuses
+        jobStatuses
       }
     }
   }

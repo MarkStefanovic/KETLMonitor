@@ -5,6 +5,9 @@ package adapter
 import domain.JobLogEntry
 import domain.JobLogRepo
 import domain.LogLevel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.sql.ResultSet
 import javax.sql.DataSource
 
@@ -12,40 +15,13 @@ class PgJobLogRepo(
   val schema: String,
   val showSQL: Boolean,
   private val ds: DataSource,
+  private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JobLogRepo {
-//  override fun latest(n: Int): List<JobLogEntry> {
-//    //language=PostgreSQL
-//    val sql = """
-//      |SELECT log_name, log_level, message, ts
-//      |FROM $schema.log
-//      |ORDER BY ts DESC
-//      |LIMIT $n
-//    """.trimMargin()
-//
-//    if (showSQL) {
-//      println(
-//        """
-//        |PgJobLogRepo.getLatestEntries(n = $n)
-//        |  ${sql.split("\n").joinToString("\n  ")}
-//      """.trimMargin()
-//      )
-//    }
-//
-//    val logEntries = mutableListOf<JobLogEntry>()
-//    ds.connection.use { connection ->
-//      connection.createStatement().use { statement ->
-//        statement.executeQuery(sql).use { resultSet ->
-//          while (resultSet.next()) {
-//            val logEntry = resultSet.toJobLogEntry()
-//            logEntries.add(logEntry)
-//          }
-//        }
-//      }
-//    }
-//    return logEntries
-//  }
-
-  override fun where(jobNamePrefix: String, logLevel: LogLevel, n: Int): List<JobLogEntry> {
+  override suspend fun where(
+    jobNamePrefix: String,
+    logLevel: LogLevel,
+    n: Int,
+  ): List<JobLogEntry> = withContext(dispatcher) {
     val logLevelFilter = when (logLevel) {
       LogLevel.Any -> ""
       LogLevel.Debug -> "AND log_level = 'debug'"
@@ -92,7 +68,7 @@ class PgJobLogRepo(
         }
       }
     }
-    return logEntries
+    logEntries
   }
 }
 
