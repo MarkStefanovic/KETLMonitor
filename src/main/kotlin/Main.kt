@@ -30,6 +30,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import presentation.MainView
@@ -137,14 +138,6 @@ object Services {
       showSQL = false,
     )
 
-    scope.launch {
-      refreshJobResultsEvery(events = jobResultEvents, duration = 1.minutes)
-
-      refreshJobLogEvery(events = jobLogEvents, duration = 1.minutes)
-
-      refreshJobStatusesEvery(events = jobStatusEvents, duration = 1.minutes)
-    }
-
     return scope.launch {
       jobResultBloc(
         repo = jobResultRepo,
@@ -167,6 +160,14 @@ object Services {
         events = jobStatusEvents,
         logger = logger,
       )
+
+      yield()
+
+      refreshJobResultsEvery(events = jobResultEvents, duration = 1.minutes)
+
+      refreshJobLogEvery(events = jobLogEvents, duration = 1.minutes)
+
+      refreshJobStatusesEvery(events = jobStatusEvents, duration = 1.minutes)
     }
   }
 
