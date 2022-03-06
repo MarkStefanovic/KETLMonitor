@@ -7,21 +7,25 @@ import domain.JobLogRepo
 import domain.LogLevel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import java.sql.ResultSet
 import javax.sql.DataSource
 
+@ExperimentalCoroutinesApi
 class PgJobLogRepo(
   val schema: String,
   val showSQL: Boolean,
   private val ds: DataSource,
-  private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+  dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JobLogRepo {
+  private val pool = dispatcher.limitedParallelism(1)
+
   override suspend fun where(
     jobNamePrefix: String,
     logLevel: LogLevel,
     n: Int,
-  ): List<JobLogEntry> = withContext(dispatcher) {
+  ): List<JobLogEntry> = withContext(pool) {
     val logLevelFilter = when (logLevel) {
       LogLevel.Any -> ""
       LogLevel.Debug -> "AND log_level = 'debug'"

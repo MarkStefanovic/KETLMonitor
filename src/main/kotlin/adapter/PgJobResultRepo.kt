@@ -7,20 +7,24 @@ import domain.JobResultRepo
 import domain.ResultFilter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import java.sql.ResultSet
 import javax.sql.DataSource
 
-data class PgJobResultRepo(
+@ExperimentalCoroutinesApi
+class PgJobResultRepo(
   val schema: String,
   val showSQL: Boolean,
   private val ds: DataSource,
-  private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+  dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JobResultRepo {
+  private val pool = dispatcher.limitedParallelism(1)
+
   override suspend fun getLatestResults(
     jobNameStartsWith: String?,
     resultFilter: ResultFilter,
-  ): List<JobResult> = withContext(dispatcher) {
+  ): List<JobResult> = withContext(pool) {
     if (resultFilter == ResultFilter.All) {
       // language=PostgreSQL
       val sql = """
@@ -107,7 +111,7 @@ data class PgJobResultRepo(
   override suspend fun getResultsForJob(
     selectedJob: String,
     resultFilter: ResultFilter,
-  ): List<JobResult> = withContext(dispatcher) {
+  ): List<JobResult> = withContext(pool) {
     if (resultFilter == ResultFilter.All) {
       // language=PostgreSQL
       val sql = """

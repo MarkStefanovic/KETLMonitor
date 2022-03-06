@@ -6,16 +6,20 @@ import domain.JobStatus
 import domain.JobStatusRepo
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import javax.sql.DataSource
 
-data class PgJobStatusRepo(
+@ExperimentalCoroutinesApi
+class PgJobStatusRepo(
   val schema: String,
   val showSQL: Boolean,
   private val ds: DataSource,
-  private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+  dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : JobStatusRepo {
-  override suspend fun getLatestStatuses(): List<JobStatus> = withContext(dispatcher) {
+  private val pool = dispatcher.limitedParallelism(1)
+
+  override suspend fun getLatestStatuses(): List<JobStatus> = withContext(pool) {
     // language=PostgreSQL
     val sql = """
     |SELECT 
